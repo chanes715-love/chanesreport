@@ -402,10 +402,14 @@
             setup() {
                 // System Config
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-sheet-app';
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-                     // Provide fallback dummy config to prevent crashing if environment variables are missing
-                     apiKey: "dummy", authDomain: "dummy", projectId: "dummy", storageBucket: "dummy", messagingSenderId: "dummy", appId: "dummy"
-                };
+               const firebaseConfig = {
+  apiKey: "AIzaSyBGHjLmmb_g5RjIg3xNzWTf0nrlpa4u8eo",
+  authDomain: "chanes715-1.firebaseapp.com",
+  projectId: "chanes715-1",
+  storageBucket: "chanes715-1.firebasestorage.app",
+  messagingSenderId: "583739664761",
+  appId: "1:583739664761:web:3fd8d61a7656d9098067a8"
+};
                 
                 let app, auth, db;
                 try {
