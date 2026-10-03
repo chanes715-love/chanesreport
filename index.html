@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>表單回條提醒系統</title>
-    <!-- 使用 Vue 正式版 (可消除主控台提示) -->
+    <!-- 使用 Vue 正式版 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 日系字體 Klee One -->
@@ -49,12 +49,18 @@
         #editor-container { height: 150px; background-color: #FFF; border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
         .ql-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; background-color: #F8FAFC; }
         
-        /* 調整閱讀模式下 Quill 的預設 padding */
+        /* 調整閱讀模式下 Quill 的預設 padding，讓框格呈現更美觀 */
         .display-content.ql-editor { padding: 0; font-family: inherit; font-size: inherit; }
+        
+        /* 美化捲軸 (可選) */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
     </style>
 </head>
 <body>
-    <div id="app" class="max-w-5xl mx-auto p-4 md:p-8">
+    <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
         
         <!-- 載入中遮罩 -->
         <div v-if="isLoading" class="loading-overlay">
@@ -107,8 +113,8 @@
                     <div class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-3 py-1 rounded-md mb-4">
                         📅 繳交期限：{{ formatDeadline(item.deadline) }}
                     </div>
-                    <!-- 使用 v-html 渲染 Quill 編輯器的富文本，並加上 ql-editor 類別維持排版 -->
-                    <div class="text-gray-700 text-sm mb-4 bg-gray-50 p-3 rounded-lg display-content ql-editor" v-html="item.content"></div>
+                    <!-- 公開佈告欄的內容框：加入捲軸、最大高度與框線 -->
+                    <div class="text-gray-700 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-40 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                     <div class="text-right text-xs text-gray-400 border-t pt-2 mt-2">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
                 </div>
             </div>
@@ -137,10 +143,12 @@
             </form>
         </div>
 
-        <!-- 畫面三：發布者後台 Dashboard -->
-        <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- 填報發布區 -->
-            <div class="md:col-span-1 card p-6 h-fit border border-gray-100">
+        <!-- 畫面三：發布者後台 Dashboard (左側 30%，右側 70%) -->
+        <!-- 使用 md:grid-cols-10 搭配 col-span-3 與 col-span-7 實現精準的 3:7 比例 -->
+        <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-6">
+            
+            <!-- 填報發布區 (佔 3/10) -->
+            <div class="md:col-span-3 card p-6 h-fit border border-gray-100">
                 <h2 class="text-xl font-bold mb-4 border-b pb-2 text-[#007D85]">{{ form.id ? '編輯提醒' : '發布新提醒' }}</h2>
                 <form @submit.prevent="saveItem">
                     <div class="mb-4">
@@ -163,8 +171,8 @@
                 </form>
             </div>
 
-            <!-- 我的發布紀錄 -->
-            <div class="md:col-span-2 card p-6 border border-gray-100">
+            <!-- 我的發布紀錄 (佔 7/10) -->
+            <div class="md:col-span-7 card p-6 border border-gray-100">
                 <div class="flex justify-between items-center mb-4 border-b pb-2">
                     <h2 class="text-xl font-bold">我的發布紀錄</h2>
                 </div>
@@ -176,18 +184,21 @@
                     <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
                         <div class="flex justify-between items-start mb-2">
                             <div>
-                                <span class="font-bold text-[#007D85] text-lg">{{ item.formName }}</span>
+                                <span class="font-bold text-[#007D85] text-xl">{{ item.formName }}</span>
                             </div>
                             <div class="flex gap-3">
-                                <button @click="editItem(item)" class="text-sm text-blue-600 hover:text-blue-800 font-bold px-2 py-1 bg-blue-50 rounded">修改</button>
-                                <button @click="deleteItem(item.id)" class="text-sm text-red-500 hover:text-red-700 font-bold px-2 py-1 bg-red-50 rounded">刪除</button>
+                                <button @click="editItem(item)" class="text-sm text-blue-600 hover:text-blue-800 font-bold px-3 py-1 bg-blue-50 rounded-md">修改</button>
+                                <button @click="deleteItem(item.id)" class="text-sm text-red-500 hover:text-red-700 font-bold px-3 py-1 bg-red-50 rounded-md">刪除</button>
                             </div>
                         </div>
-                        <div class="mt-2 text-red-600 font-bold text-sm">
+                        <div class="mt-2 text-red-600 font-bold text-sm mb-3">
                             📅 繳交期限：{{ formatDeadline(item.deadline) }}
                         </div>
-                        <div class="text-sm text-gray-700 mt-2 bg-white p-2 rounded border display-content ql-editor" v-html="item.content"></div>
-                        <div class="text-right text-xs text-gray-400 mt-2">更新時間: {{ formatTaiwanTime(item.timestamp) }}</div>
+                        
+                        <!-- 依照圖片呈現框格，並加入垂直捲軸 -->
+                        <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
+                        
+                        <div class="text-right text-xs text-gray-400 mt-3">更新時間: {{ formatTaiwanTime(item.timestamp) }}</div>
                     </div>
                 </div>
             </div>
@@ -260,7 +271,7 @@
                         const deadlineDate = new Date(item.deadline);
                         deadlineDate.setHours(0, 0, 0, 0);
                         
-                        // 計算差異天數：(今天 - 期限日) / 一天的毫秒數
+                        // 計算差異天數
                         const diffTime = today.getTime() - deadlineDate.getTime();
                         const diffDays = diffTime / (1000 * 3600 * 24);
                         
@@ -351,7 +362,6 @@
                     this.isLoading = true;
                     const res = await this.requestGAS({ action: 'load' });
                     if (res.success) {
-                        // 依照時間反轉 (最新的排在最前面)
                         this.items = res.items.reverse(); 
                     }
                     this.isLoading = false;
@@ -377,7 +387,6 @@
                     this.user = null; 
                     this.loginForm.pin = '';
                     this.currentView = 'public';
-                    // 清除 Quill 實例讓下次登入時重新建立
                     this.quillEditor = null; 
                 },
                 async changePassword() {
@@ -397,11 +406,9 @@
                     }
                 },
                 async saveItem() {
-                    // 防呆：確保期限有填
                     if(!this.form.deadline) return alert('請選擇繳交期限！');
                     
                     this.isLoading = true;
-                    // 將 Quill 中為空的 HTML 過濾為空白
                     let finalContent = this.form.content;
                     if (finalContent === '<p><br></p>') finalContent = '';
 
@@ -423,15 +430,12 @@
                 },
                 editItem(item) { 
                     this.form = { ...item };
-                    // 為了確保 HTML5 的 type="date" 能正確顯示，需將日期轉回 YYYY-MM-DD
                     if (this.form.deadline) {
                         this.form.deadline = this.formatDeadline(this.form.deadline);
                     }
-                    // 將資料倒回 Quill 編輯器
                     if (this.quillEditor) {
                         this.quillEditor.root.innerHTML = item.content || '';
                     }
-                    // 畫面滾動到最上方方便編輯
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
                 async deleteItem(id) {
