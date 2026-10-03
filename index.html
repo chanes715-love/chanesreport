@@ -46,7 +46,7 @@
         .dept-tag { background-color: #E6E2D6; color: #555; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold;}
         
         /* Quill 編輯器高度設定 */
-        #editor-container { height: 150px; background-color: #FFF; border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
+        #editor-container { height: 250px; background-color: #FFF; border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
         .ql-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; background-color: #F8FAFC; }
         
         /* 調整閱讀模式下 Quill 的預設 padding，讓框格呈現更美觀 */
@@ -113,7 +113,6 @@
                     <div class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-3 py-1 rounded-md mb-4">
                         📅 繳交期限：{{ formatDeadline(item.deadline) }}
                     </div>
-                    <!-- 公開佈告欄的內容框：加入捲軸、最大高度與框線 -->
                     <div class="text-gray-700 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-40 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                     <div class="text-right text-xs text-gray-400 border-t pt-2 mt-2">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
                 </div>
@@ -143,21 +142,22 @@
             </form>
         </div>
 
-        <!-- 畫面三：發布者後台 Dashboard (左側 30%，右側 70%) -->
-        <!-- 使用 md:grid-cols-10 搭配 col-span-3 與 col-span-7 實現精準的 3:7 比例 -->
+        <!-- 畫面三：發布者後台 Dashboard (變更為左側 70%，右側 30%) -->
         <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-6">
             
-            <!-- 填報發布區 (佔 3/10) -->
-            <div class="md:col-span-3 card p-6 h-fit border border-gray-100">
+            <!-- 填報發布區 (改為佔 7/10) -->
+            <div class="md:col-span-7 card p-6 h-fit border border-gray-100">
                 <h2 class="text-xl font-bold mb-4 border-b pb-2 text-[#007D85]">{{ form.id ? '編輯提醒' : '發布新提醒' }}</h2>
                 <form @submit.prevent="saveItem">
-                    <div class="mb-4">
-                        <label class="block mb-2 text-sm text-gray-700 font-bold">繳交期限</label>
-                        <input type="date" v-model="form.deadline" class="input-style bg-red-50 focus:bg-white" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block mb-2 text-sm text-gray-700">表單/回條名稱</label>
-                        <input type="text" v-model="form.formName" class="input-style" placeholder="例如：行動載具同意書" required>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">繳交期限</label>
+                            <input type="date" v-model="form.deadline" class="input-style bg-red-50 focus:bg-white" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm text-gray-700">表單/回條名稱</label>
+                            <input type="text" v-model="form.formName" class="input-style" placeholder="例如：行動載具同意書" required>
+                        </div>
                     </div>
                     <div class="mb-6">
                         <label class="block mb-2 text-sm text-gray-700">備註與說明 (選填)</label>
@@ -165,14 +165,14 @@
                         <div id="editor-container"></div>
                     </div>
                     <div class="flex gap-2">
-                        <button type="submit" class="flex-1 btn-green py-2 rounded-lg font-bold shadow-sm">儲存發布</button>
-                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-4 rounded-lg">取消</button>
+                        <button type="submit" class="flex-1 btn-green py-3 rounded-lg font-bold shadow-sm text-lg">儲存發布</button>
+                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-lg text-lg">取消</button>
                     </div>
                 </form>
             </div>
 
-            <!-- 我的發布紀錄 (佔 7/10) -->
-            <div class="md:col-span-7 card p-6 border border-gray-100">
+            <!-- 我的發布紀錄 (改為佔 3/10) -->
+            <div class="md:col-span-3 card p-6 border border-gray-100 h-fit max-h-[800px] overflow-y-auto custom-scrollbar">
                 <div class="flex justify-between items-center mb-4 border-b pb-2">
                     <h2 class="text-xl font-bold">我的發布紀錄</h2>
                 </div>
@@ -182,23 +182,20 @@
                 </div>
                 <div v-else class="space-y-4">
                     <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <span class="font-bold text-[#007D85] text-xl">{{ item.formName }}</span>
-                            </div>
-                            <div class="flex gap-3">
+                        <div class="flex flex-col gap-2 mb-2">
+                            <span class="font-bold text-[#007D85] text-lg leading-tight">{{ item.formName }}</span>
+                            <div class="flex gap-2">
                                 <button @click="editItem(item)" class="text-sm text-blue-600 hover:text-blue-800 font-bold px-3 py-1 bg-blue-50 rounded-md">修改</button>
                                 <button @click="deleteItem(item.id)" class="text-sm text-red-500 hover:text-red-700 font-bold px-3 py-1 bg-red-50 rounded-md">刪除</button>
                             </div>
                         </div>
                         <div class="mt-2 text-red-600 font-bold text-sm mb-3">
-                            📅 繳交期限：{{ formatDeadline(item.deadline) }}
+                            📅 繳交期限：<br>{{ formatDeadline(item.deadline) }}
                         </div>
                         
-                        <!-- 依照圖片呈現框格，並加入垂直捲軸 -->
                         <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                         
-                        <div class="text-right text-xs text-gray-400 mt-3">更新時間: {{ formatTaiwanTime(item.timestamp) }}</div>
+                        <div class="text-right text-xs text-gray-400 mt-3">更新: {{ formatTaiwanTime(item.timestamp) }}</div>
                     </div>
                 </div>
             </div>
@@ -261,35 +258,29 @@
                 this.fetchUsers(); 
             },
             computed: {
-                // 1. 過濾掉「超過期限 7 天以上」的舊資料
                 validItems() {
                     const today = new Date();
-                    today.setHours(0, 0, 0, 0); // 基準為今天的凌晨 00:00
+                    today.setHours(0, 0, 0, 0); 
 
                     return this.items.filter(item => {
                         if (!item.deadline) return true;
                         const deadlineDate = new Date(item.deadline);
                         deadlineDate.setHours(0, 0, 0, 0);
                         
-                        // 計算差異天數
                         const diffTime = today.getTime() - deadlineDate.getTime();
                         const diffDays = diffTime / (1000 * 3600 * 24);
                         
-                        // 如果今天已經超過期限日 7 天 (大於 7)，就回傳 false 隱藏它
                         return diffDays <= 7;
                     });
                 },
-                // 2. 提供公開佈告欄使用的「處室下拉選單選項」
                 availableDepts() {
                     const depts = new Set(this.validItems.map(item => item.dept));
                     return Array.from(depts).filter(Boolean);
                 },
-                // 3. 公開佈告欄顯示的資料 (支援處室搜尋)
                 filteredPublicItems() {
                     if (!this.searchDept) return this.validItems;
                     return this.validItems.filter(item => item.dept === this.searchDept);
                 },
-                // 4. 發布者後台顯示的資料 (只顯示自己發布的，管理員可見全部)
                 myItems() {
                     if (!this.user) return [];
                     if (this.user.isAdmin) return this.validItems;
@@ -311,7 +302,6 @@
                         return { success: false };
                     }
                 },
-                // 日期格式化：只顯示 YYYY-MM-DD
                 formatDeadline(isoString) {
                     if (!isoString) return '';
                     const d = new Date(isoString);
@@ -321,7 +311,6 @@
                     const day = String(d.getDate()).padStart(2, '0');
                     return `${year}-${month}-${day}`;
                 },
-                // 時間格式化：轉換為台灣時間 (YYYY/MM/DD HH:mm)
                 formatTaiwanTime(isoString) {
                     if (!isoString) return '';
                     const d = new Date(isoString);
@@ -332,23 +321,21 @@
                         hour: '2-digit', minute: '2-digit', hour12: false
                     });
                 },
-                // 初始化 Quill 編輯器
                 async initQuill() {
-                    await this.$nextTick(); // 等待 DOM 渲染
+                    await this.$nextTick(); 
                     if (!this.quillEditor) {
                         this.quillEditor = new Quill('#editor-container', {
                             theme: 'snow',
                             placeholder: '請填寫繳交對象或繳交方式 (可加上超連結、改顏色)...',
                             modules: {
                                 toolbar: [
-                                    [{ 'size': ['small', false, 'large', 'huge'] }], // 字體大小
-                                    [{ 'color': [] }, { 'background': [] }],       // 字體與背景顏色
-                                    ['bold', 'italic', 'underline', 'strike'],     // 樣式
-                                    ['link', 'list']                               // 超連結與清單
+                                    [{ 'size': ['small', false, 'large', 'huge'] }], 
+                                    [{ 'color': [] }, { 'background': [] }],       
+                                    ['bold', 'italic', 'underline', 'strike'],     
+                                    ['link', 'list']                               
                                 ]
                             }
                         });
-                        // 監聽內容改變，同步回 Vue 的 data
                         this.quillEditor.on('text-change', () => {
                             this.form.content = this.quillEditor.root.innerHTML;
                         });
@@ -376,7 +363,7 @@
                         this.user = res.user;
                         this.isLoggedIn = true;
                         this.currentView = 'dashboard';
-                        this.initQuill(); // 登入後台時初始化編輯器
+                        this.initQuill(); 
                     } else { 
                         alert(res.message); 
                     }
