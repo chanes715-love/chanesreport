@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>表單回條提醒系統</title>
+    <title>長安國小表單回條提醒服務</title>
     <!-- 使用 Vue 正式版 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -76,11 +76,11 @@
         <!-- 頂部導覽列 -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-[#007D85]">🏫 學校表單回條總覽</h1>
+                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安國小表單回條提醒總覽</h1>
                 <p v-if="isLoggedIn" class="text-gray-600 mt-1">
                     登入者：{{ user.name }} <span class="dept-tag ml-1">{{ user.dept }}</span>
                 </p>
-                <p v-else class="text-gray-500 mt-1 text-sm">各處室最新表單繳交與任務提醒</p>
+                <p v-else class="text-gray-500 mt-1 text-sm">各處室表單回條提醒</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2">
                 <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-green px-5 py-2 rounded-lg font-bold">登入發布</button>
@@ -96,7 +96,7 @@
         <!-- 畫面一：公開佈告欄 (免登入可見) -->
         <div v-if="currentView === 'public'" class="card p-6 border border-gray-100">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-xl font-bold">📌 最新任務提醒</h2>
+                <h2 class="text-xl font-bold">📌 各處室表單回條提醒</h2>
                 <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
                     <span class="text-sm text-gray-600 font-bold">🔍 處室過濾：</span>
                     <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32 bg-white">
