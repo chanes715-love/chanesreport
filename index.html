@@ -244,7 +244,7 @@
             data() {
                 return {
                     // ★ 重要：請填入您的 Google Apps Script 部署 URL ★
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0oYt8q19bxGPIKAWYqzN0P0YRU0xLygLjzvBwqSTI5nh5llKJeQ4NXvFSV54R2evJ/exec', 
+                    scriptUrl: '<請填入您的 Google Apps Script URL>', 
                     
                     // 視圖控制： 'public' (佈告欄), 'login' (登入頁), 'dashboard' (管理後台)
                     currentView: 'public', 
@@ -289,14 +289,41 @@
                 },
                 // [公開佈告欄] 根據選擇的處室進行過濾
                 filteredItems() {
-                    if (!this.searchDept) return this.items;
-                    return this.items.filter(item => item.dept === this.searchDept);
+                    let result = this.items;
+                    if (this.searchDept) {
+                        result = result.filter(item => item.dept === this.searchDept);
+                    }
+                    // 過濾掉過期超過 7 天的資料
+                    const now = new Date();
+                    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    // 將時間設為當天的凌晨 00:00:00，以便只比對日期
+                    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                    return result.filter(item => {
+                        if (!item.deadline) return true; // 如果沒有期限，就顯示
+                        const deadlineDate = new Date(item.deadline);
+                        // 如果繳交期限 (deadlineDate) 大於等於 7 天前的日期，就保留
+                        return deadlineDate >= sevenDaysAgo;
+                    });
                 },
                 // [管理後台] 只顯示登入者自己發布的，若為管理員則顯示全部以供管理
                 myItems() {
                     if (!this.user) return [];
-                    if (this.user.isAdmin) return this.items;
-                    return this.items.filter(item => item.email === this.user.email);
+                    let result = this.items;
+                    if (!this.user.isAdmin) {
+                        result = result.filter(item => item.email === this.user.email);
+                    }
+                    
+                    // 管理後台也過濾掉過期超過 7 天的資料，保持版面清爽
+                    const now = new Date();
+                    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                    return result.filter(item => {
+                        if (!item.deadline) return true;
+                        const deadlineDate = new Date(item.deadline);
+                        return deadlineDate >= sevenDaysAgo;
+                    });
                 }
             },
             methods: {
@@ -329,8 +356,25 @@
                     this.isLoading = true;
                     const res = await this.requestGAS({ action: 'load' });
                     if (res.success) {
-                        // 依據發布時間反序排列 (最新的在最前面)
-                        this.items = res.items.reverse(); 
+                        // 處理日期格式 (只保留 YYYY-MM-DD)，並依據發布時間反序排列
+                        this.items = res.items.map(item => {
+                            if (item.deadline) {
+                                // 嘗試解析日期，如果失敗則保留原樣
+                                const d = new Date(item.deadline);
+                                if (!isNaN(d.getTime())) {
+                                    // 確保抓到的是當地時間的 YYYY-MM-DD
+                                    // 由於從 GAS 傳過來的可能是 UTC 時間，使用 getFullYear() 等方法可能會差一天，
+                                    // 因此直接取 ISO 字串的前 10 碼 (YYYY-MM-DD) 是最穩定的做法，但要注意時區偏差。
+                                    // 更精確的做法是使用toLocaleDateString，轉換成當地時區。
+                                    
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    item.deadline = `${year}-${month}-${day}`;
+                                }
+                            }
+                            return item;
+                        }).reverse(); 
                     }
                     this.isLoading = false;
                 },
