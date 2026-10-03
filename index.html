@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>表單回條提醒系統</title>
+    <title>表單回條繳交提醒服務</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Klee One', cursive, sans-serif;
-            background-color: #007D85;
+            background-color: #F7F4EA; /* 預設使用米白底色 */
             color: #4A4A4A;
+            transition: background-color 0.3s ease;
+        }
+        /* 登入畫面的特殊深青色背景 */
+        .login-mode {
+            background-color: #007D85 !important;
         }
         .btn-primary { background-color: #007D85; color: #FFF; transition: 0.2s; }
         .btn-primary:hover { background-color: #006066; }
@@ -19,7 +24,7 @@
         .btn-green:hover { background-color: #637557; }
         .btn-gray { background-color: #B0B0B0; color: #FFF; transition: 0.2s; }
         
-        .card { background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .card { background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .input-style {
             width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #CBD5E1;
             border-radius: 0.375rem; background-color: #FFF; outline: none; transition: 0.2s; color: #007D85;
@@ -32,27 +37,83 @@
             padding: 12px; color: #64748B; font-size: 0.9rem; text-align: center; margin-bottom: 12px;
         }
         .loading-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 125, 133, 0.9);
-            display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #FFF; font-weight: 600; flex-direction: column;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(247, 244, 234, 0.9);
+            display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #007D85; font-weight: 600; flex-direction: column;
         }
-        .dashboard-mode { background-color: #F7F4EA; }
-        .dept-tag { background-color: #E6E2D6; color: #555; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .dept-tag { background-color: #E6E2D6; color: #555; padding: 3px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        .deadline-text { color: #D94646; font-weight: bold; }
     </style>
 </head>
-<body :class="{ 'dashboard-mode': isLoggedIn }" id="body-container">
-    <div id="app" class="max-w-5xl mx-auto p-4 md:p-8">
+<body id="body-container">
+    <div id="app" class="max-w-5xl mx-auto p-4 md:p-8" v-cloak>
         
-        <!-- 載入中遮罩 -->
-        <div v-if="isLoading" class="loading-overlay">
+        <div v-if="isLoading" class="loading-overlay" :style="currentView === 'login' ? 'background: rgba(0, 125, 133, 0.9); color: white;' : ''">
             <div>處理中，請稍候... 🍵</div>
         </div>
 
-        <!-- 登入畫面 -->
-        <div v-if="!isLoggedIn" class="card p-8 max-w-sm mx-auto mt-16">
-            <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">系統登入</h1>
+        <!-- ========================================== -->
+        <!-- 視圖 1：公開佈告欄 (Public Board) -->
+        <!-- ========================================== -->
+        <div v-if="currentView === 'public'">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-[#E6E2D6]">
+                <div>
+                    <h1 class="text-2xl font-bold text-[#007D85] mb-2">📌 處室表單回條繳交總覽</h1>
+                    <p class="text-gray-600 text-sm">此頁面為公開資訊，免登入即可查詢各處室發布之繳交任務。</p>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <button @click="switchView('login')" class="btn-primary px-6 py-2 rounded-lg font-bold shadow-md flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L6.414 9H17a1 1 0 110 2H6.414l4.293 4.293a1 1 0 01-1.414 1.414l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                        處室人員登入發布
+                    </button>
+                </div>
+            </div>
+
+            <div class="card p-6 border border-[#E6E2D6]">
+                <div class="flex flex-wrap justify-between items-center mb-6 border-b border-[#E6E2D6] pb-4 gap-4">
+                    <h2 class="text-xl font-bold text-gray-800">最新通知列表</h2>
+                    <div class="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                        <span class="text-sm text-gray-600 font-bold">🔍 處室過濾：</span>
+                        <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-40 bg-white">
+                            <option value="">顯示所有處室</option>
+                            <option v-for="dept in availableDepts" :key="dept" :value="dept">{{ dept }}</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div v-if="filteredItems.length === 0" class="text-center text-gray-400 py-16">
+                    目前尚無發布的提醒資料。
+                </div>
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="item in filteredItems" :key="item.id" class="p-5 border border-[#E6E2D6] rounded-xl bg-[#FAFAFA] hover:shadow-md transition-shadow relative">
+                        <div class="mb-3">
+                            <span class="dept-tag mr-2">{{ item.dept }}</span>
+                            <span class="font-bold text-[#007D85] text-lg align-middle">{{ item.formName }}</span>
+                        </div>
+                        <div class="mb-2 text-sm">
+                            <span class="deadline-text">📅 繳交期限：{{ item.deadline }}</span>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-gray-100 text-sm text-gray-700 whitespace-pre-wrap min-h-[4rem]">
+                            {{ item.content || '無補充說明' }}
+                        </div>
+                        <div class="text-right text-xs text-gray-400 mt-4 border-t border-gray-100 pt-2">
+                            發布者: {{ item.name }} | 更新時間: {{ item.timestamp }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 視圖 2：系統登入 (Login) -->
+        <!-- ========================================== -->
+        <div v-if="currentView === 'login'" class="card p-8 max-w-sm mx-auto mt-16 shadow-2xl">
+            <button @click="switchView('public')" class="text-sm text-gray-400 hover:text-[#007D85] mb-4 flex items-center gap-1">
+                ← 返回佈告欄
+            </button>
+            <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">後台管理登入</h1>
             <form @submit.prevent="login">
                 <div class="mb-6">
-                    <select v-model="loginForm.name" class="input-style cursor-pointer text-lg" required>
+                    <select v-model="loginForm.name" class="input-style cursor-pointer text-lg font-bold" required>
                         <option disabled value="">-- 請選擇您的姓名 --</option>
                         <option v-for="u in userList" :key="u.name" :value="u.name">{{ u.name }}</option>
                     </select>
@@ -62,7 +123,7 @@
                         💡 請輸入你的 <b>mail.chanes.tc.edu.tw</b> 帳號<br>
                         <span class="text-xs">(只需輸入 @ 前的帳號即可)</span>
                     </div>
-                    <input type="password" v-model="loginForm.pin" class="input-style" placeholder="輸入帳號前綴..." required>
+                    <input type="password" v-model="loginForm.pin" class="input-style font-sans" placeholder="輸入密碼..." required>
                 </div>
                 <button type="submit" class="w-full btn-primary py-3 rounded-xl text-xl font-bold tracking-widest shadow-md">
                     Login 登入
@@ -70,111 +131,106 @@
             </form>
         </div>
 
-        <!-- 系統主畫面 -->
-        <div v-else>
-            <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <!-- ========================================== -->
+        <!-- 視圖 3：管理後台 (Dashboard) -->
+        <!-- ========================================== -->
+        <div v-if="currentView === 'dashboard'">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-[#E6E2D6]">
                 <div>
-                    <h1 class="text-2xl font-bold text-[#007D85]">表單回條繳交提醒服務</h1>
+                    <h1 class="text-2xl font-bold text-[#007D85]">後台發布管理系統</h1>
                     <p class="text-gray-600 mt-1">
                         登入者：{{ user.name }} <span class="dept-tag ml-1">{{ user.dept }}</span>
                         <span v-if="user.isAdmin" class="bg-[#798D6C] text-white text-xs px-2 py-1 rounded-full ml-2">管理員</span>
                     </p>
                 </div>
                 <div class="mt-4 md:mt-0 flex gap-2">
+                    <button @click="switchView('public')" class="btn-primary px-4 py-2 rounded-md hover:bg-[#006066]">返回佈告欄</button>
                     <button @click="showPwdModal = true" class="btn-gray px-4 py-2 rounded-md hover:bg-gray-500">修改密碼</button>
                     <button @click="logout" class="bg-red-400 text-white px-4 py-2 rounded-md hover:bg-red-500">登出</button>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- 填報發布區 -->
-                <div class="md:col-span-1 card p-6 h-fit border border-gray-100">
-                    <h2 class="text-xl font-bold mb-4 border-b pb-2">{{ form.id ? '編輯提醒' : '發布新提醒' }}</h2>
+                <div class="md:col-span-1 card p-6 h-fit border border-[#E6E2D6]">
+                    <h2 class="text-xl font-bold mb-4 border-b border-[#E6E2D6] pb-2 text-[#007D85]">
+                        {{ form.id ? '✏️ 編輯提醒' : '📝 發布新提醒' }}
+                    </h2>
                     <form @submit.prevent="saveItem">
                         <div class="mb-4">
-                            <label class="block mb-2 text-sm text-gray-700">發布處室</label>
-                            <input type="text" :value="user.dept" class="input-style input-readonly" readonly>
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">發布處室</label>
+                            <input type="text" :value="user.dept" class="input-style input-readonly font-bold" readonly>
                         </div>
                         <div class="mb-4">
-                            <label class="block mb-2 text-sm text-gray-700 font-bold">繳交期限</label>
-                            <input type="date" v-model="form.deadline" class="input-style" required>
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">繳交期限 (必填)</label>
+                            <input type="date" v-model="form.deadline" class="input-style font-sans" required>
                         </div>
                         <div class="mb-4">
-                            <label class="block mb-2 text-sm text-gray-700">表單/回條名稱</label>
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">表單/回條名稱 (必填)</label>
                             <input type="text" v-model="form.formName" class="input-style" placeholder="例如：行動載具同意書" required>
                         </div>
                         <div class="mb-6">
-                            <label class="block mb-2 text-sm text-gray-700">備註與說明</label>
-                            <textarea v-model="form.content" class="input-style h-24" placeholder="請填寫對象或繳交方式..."></textarea>
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">備註與說明 (選填)</label>
+                            <textarea v-model="form.content" class="input-style h-24" placeholder="請填寫繳交對象或繳交方式..."></textarea>
                         </div>
                         <div class="flex gap-2">
-                            <button type="submit" class="flex-1 btn-green py-2 rounded-md font-bold">儲存發布</button>
+                            <button type="submit" class="flex-1 btn-green py-2 rounded-md font-bold text-lg shadow">儲存發布</button>
                             <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-4 rounded-md">取消</button>
                         </div>
                     </form>
                 </div>
 
-                <!-- 資料搜尋與列表區 -->
-                <div class="md:col-span-2 card p-6 border border-gray-100">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h2 class="text-xl font-bold">各處室提醒總覽</h2>
-                        <!-- 處室搜尋過濾器 -->
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm text-gray-600">🔍 搜尋處室：</span>
-                            <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32">
-                                <option value="">顯示全部</option>
-                                <option v-for="dept in availableDepts" :key="dept" :value="dept">{{ dept }}</option>
-                            </select>
-                        </div>
+                <div class="md:col-span-2 card p-6 border border-[#E6E2D6]">
+                    <div class="flex justify-between items-center mb-4 border-b border-[#E6E2D6] pb-2">
+                        <h2 class="text-xl font-bold text-gray-800">我的發布紀錄</h2>
                     </div>
                     
-                    <div v-if="filteredItems.length === 0" class="text-center text-gray-400 py-10">
-                        目前尚無符合的提醒資料。
+                    <div v-if="myItems.length === 0" class="text-center text-gray-400 py-10">
+                        您目前尚未發布任何提醒。
                     </div>
                     <div v-else class="space-y-4">
-                        <div v-for="item in filteredItems" :key="item.id" class="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
+                        <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
                                     <span class="dept-tag mr-2">{{ item.dept }}</span>
                                     <span class="font-bold text-[#007D85] text-lg">{{ item.formName }}</span>
                                 </div>
-                                <!-- 只有發布者本人或管理員可以修改/刪除 -->
-                                <div class="flex gap-3" v-if="item.email === user.email || user.isAdmin">
+                                <div class="flex gap-3">
                                     <button @click="editItem(item)" class="text-sm text-blue-600 hover:text-blue-800 font-bold">修改</button>
                                     <button @click="deleteItem(item.id)" class="text-sm text-red-500 hover:text-red-700 font-bold">刪除</button>
                                 </div>
                             </div>
-                            <div class="mt-2 text-red-600 font-bold text-sm">
+                            <div class="mt-1 mb-2 deadline-text text-sm">
                                 📅 繳交期限：{{ item.deadline }}
                             </div>
-                            <p class="whitespace-pre-wrap text-sm text-gray-700 mt-2">{{ item.content }}</p>
-                            <div class="text-right text-xs text-gray-400 mt-2">發布者: {{ item.name }} | 更新時間: {{ item.timestamp }}</div>
+                            <p class="whitespace-pre-wrap text-sm text-gray-700 bg-white p-2 border border-gray-100 rounded">{{ item.content }}</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 修改密碼 Modal (保持不變) -->
+        <!-- ========================================== -->
+        <!-- 修改密碼 Modal -->
+        <!-- ========================================== -->
         <div v-if="showPwdModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40">
-            <div class="card p-6 w-96">
-                <h2 class="text-xl font-bold mb-4">修改密碼</h2>
+            <div class="card p-6 w-96 shadow-2xl">
+                <h2 class="text-xl font-bold mb-4 text-[#007D85]">修改密碼</h2>
                 <form @submit.prevent="changePassword">
                     <div class="mb-4">
-                        <label class="block mb-1 text-sm">舊密碼</label>
-                        <input type="password" v-model="pwdForm.oldPin" class="input-style" required>
+                        <label class="block mb-1 text-sm font-bold">舊密碼</label>
+                        <input type="password" v-model="pwdForm.oldPin" class="input-style font-sans" required>
                     </div>
                     <div class="mb-4">
-                        <label class="block mb-1 text-sm">新密碼</label>
-                        <input type="password" v-model="pwdForm.newPin" class="input-style" required>
+                        <label class="block mb-1 text-sm font-bold">新密碼</label>
+                        <input type="password" v-model="pwdForm.newPin" class="input-style font-sans" required>
                     </div>
                     <div class="mb-6">
-                        <label class="block mb-1 text-sm">確認新密碼</label>
-                        <input type="password" v-model="pwdForm.confirm" class="input-style" required>
+                        <label class="block mb-1 text-sm font-bold">確認新密碼</label>
+                        <input type="password" v-model="pwdForm.confirm" class="input-style font-sans" required>
                     </div>
                     <div class="flex justify-end gap-2">
-                        <button type="button" @click="showPwdModal = false; pwdForm={}" class="btn-gray px-4 py-2 rounded">取消</button>
-                        <button type="submit" class="btn-green px-4 py-2 rounded">確認修改</button>
+                        <button type="button" @click="showPwdModal = false; pwdForm={}" class="btn-gray px-4 py-2 rounded font-bold">取消</button>
+                        <button type="submit" class="btn-green px-4 py-2 rounded font-bold">確認修改</button>
                     </div>
                 </form>
             </div>
@@ -187,39 +243,60 @@
         createApp({
             data() {
                 return {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0oYt8q19bxGPIKAWYqzN0P0YRU0xLygLjzvBwqSTI5nh5llKJeQ4NXvFSV54R2evJ/exec', // ★ 記得填入
+                    // ★ 重要：請填入您的 Google Apps Script 部署 URL ★
+                    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0oYt8q19bxGPIKAWYqzN0P0YRU0xLygLjzvBwqSTI5nh5llKJeQ4NXvFSV54R2evJ/exec', 
                     
-                    isLoading: false, isLoggedIn: false, user: null,
-                    userList: [], loginForm: { name: '', pin: '' },
+                    // 視圖控制： 'public' (佈告欄), 'login' (登入頁), 'dashboard' (管理後台)
+                    currentView: 'public', 
+                    isLoading: false, 
                     
+                    // 使用者資料
+                    userList: [], 
+                    loginForm: { name: '', pin: '' },
+                    user: null,
+                    
+                    // 填報資料
                     items: [],
-                    searchDept: '', // 用於儲存使用者選擇的搜尋處室
+                    searchDept: '', // 公開佈告欄的過濾器
+                    
+                    // 表單狀態
                     form: { id: null, deadline: '', formName: '', content: '' },
-                    showPwdModal: false, pwdForm: { oldPin: '', newPin: '', confirm: '' }
+                    showPwdModal: false, 
+                    pwdForm: { oldPin: '', newPin: '', confirm: '' }
                 }
             },
-            mounted() { this.fetchUsers(); },
+            mounted() {
+                // 網頁開啟時，自動抓取所有人名單與所有公告資料
+                this.fetchUsers();
+                this.loadData();
+            },
             watch: {
-                isLoggedIn(newVal) {
-                    if (newVal) {
-                        document.body.classList.add('dashboard-mode');
-                        document.body.style.backgroundColor = '#F7F4EA';
+                // 根據當前視圖動態切換 body 背景色 (登入頁為青綠色，其他為米白)
+                currentView(newVal) {
+                    const body = document.getElementById('body-container');
+                    if (newVal === 'login') {
+                        body.classList.add('login-mode');
                     } else {
-                        document.body.classList.remove('dashboard-mode');
-                        document.body.style.backgroundColor = '#007D85';
+                        body.classList.remove('login-mode');
                     }
                 }
             },
             computed: {
-                // 自動收集目前所有表單中出現過的「處室」清單，提供給搜尋下拉選單使用
+                // [公開佈告欄] 提取所有出現過的處室，供下拉選單使用
                 availableDepts() {
                     const depts = new Set(this.items.map(item => item.dept));
-                    return Array.from(depts).filter(Boolean);
+                    return Array.from(depts).filter(Boolean).sort();
                 },
-                // 根據使用者選擇的處室進行過濾
+                // [公開佈告欄] 根據選擇的處室進行過濾
                 filteredItems() {
                     if (!this.searchDept) return this.items;
                     return this.items.filter(item => item.dept === this.searchDept);
+                },
+                // [管理後台] 只顯示登入者自己發布的，若為管理員則顯示全部以供管理
+                myItems() {
+                    if (!this.user) return [];
+                    if (this.user.isAdmin) return this.items;
+                    return this.items.filter(item => item.email === this.user.email);
                 }
             },
             methods: {
@@ -232,13 +309,29 @@
                         });
                         return await res.json();
                     } catch (error) {
-                        alert('網路連線錯誤'); return { success: false };
+                        alert('網路連線錯誤，請確認 GAS 網址');
+                        console.error(error);
+                        return { success: false };
                     }
                 },
+                // 切換畫面
+                switchView(viewName) {
+                    this.currentView = viewName;
+                    if (viewName === 'public') this.loadData(); // 返回佈告欄時重整資料
+                },
+                // 抓取姓名清單
                 async fetchUsers() {
-                    this.isLoading = true;
                     const res = await this.requestGAS({ action: 'getUsers' });
                     if (res.success && res.users) this.userList = res.users;
+                },
+                // 讀取所有公告
+                async loadData() {
+                    this.isLoading = true;
+                    const res = await this.requestGAS({ action: 'load' });
+                    if (res.success) {
+                        // 依據發布時間反序排列 (最新的在最前面)
+                        this.items = res.items.reverse(); 
+                    }
                     this.isLoading = false;
                 },
                 async login() {
@@ -247,55 +340,77 @@
                     const res = await this.requestGAS({
                         action: 'login', name: this.loginForm.name, pin: this.loginForm.pin
                     });
+                    this.isLoading = false;
+                    
                     if (res.success) {
                         this.user = res.user;
-                        this.isLoggedIn = true;
-                        this.loadData();
-                    } else { alert(res.message); }
-                    this.isLoading = false;
+                        this.loginForm.pin = ''; // 清除密碼輸入框
+                        this.switchView('dashboard'); // 登入成功跳轉後台
+                    } else { 
+                        alert(res.message); 
+                    }
                 },
                 logout() {
-                    this.isLoggedIn = false; this.user = null; this.items = []; this.loginForm.pin = '';
-                },
-                async changePassword() {
-                    if (this.pwdForm.newPin !== this.pwdForm.confirm) return alert('新密碼不一致！');
-                    this.isLoading = true;
-                    const res = await this.requestGAS({
-                        action: 'changePassword', email: this.user.email,
-                        oldPin: this.pwdForm.oldPin, newPin: this.pwdForm.newPin
-                    });
-                    this.isLoading = false;
-                    if (res.success) { alert('密碼修改成功！請重新登入。'); this.showPwdModal = false; this.logout(); } 
-                    else { alert(res.message); }
-                },
-                async loadData() {
-                    this.isLoading = true;
-                    const res = await this.requestGAS({ action: 'load' });
-                    if (res.success) {
-                        // 依照繳交期限排序 (越近的排越前面) 或是依據更新時間，這裡以發布新舊反轉排列
-                        this.items = res.items.reverse(); 
-                    }
-                    this.isLoading = false;
+                    this.user = null;
+                    this.resetForm();
+                    this.switchView('public');
+                    alert('已成功登出');
                 },
                 async saveItem() {
                     this.isLoading = true;
                     const payload = {
-                        action: 'save', email: this.user.email, name: this.user.name, userDept: this.user.dept,
+                        action: 'save', 
+                        email: this.user.email, 
+                        name: this.user.name, 
+                        userDept: this.user.dept,
                         item: this.form
                     };
                     const res = await this.requestGAS(payload);
-                    if (res.success) { this.resetForm(); await this.loadData(); } 
-                    else { alert(res.message); this.isLoading = false; }
+                    if (res.success) { 
+                        this.resetForm(); 
+                        await this.loadData(); 
+                        alert('發布成功！');
+                    } else { 
+                        alert(res.message); 
+                        this.isLoading = false; 
+                    }
                 },
-                editItem(item) { this.form = { ...item }; },
+                editItem(item) {
+                    this.form = { ...item };
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
                 async deleteItem(id) {
-                    if (!confirm('確定要刪除這筆提醒嗎？')) return;
+                    if (!confirm('確定要刪除這筆提醒嗎？此操作無法復原。')) return;
                     this.isLoading = true;
                     const res = await this.requestGAS({ action: 'delete', id: id, email: this.user.email });
-                    if (res.success) await this.loadData();
-                    else this.isLoading = false;
+                    if (res.success) {
+                        await this.loadData();
+                    } else {
+                        alert(res.message);
+                        this.isLoading = false;
+                    }
                 },
-                resetForm() { this.form = { id: null, deadline: '', formName: '', content: '' }; }
+                resetForm() { 
+                    this.form = { id: null, deadline: '', formName: '', content: '' }; 
+                },
+                async changePassword() {
+                    if (this.pwdForm.newPin !== this.pwdForm.confirm) return alert('兩次輸入的新密碼不一致！');
+                    this.isLoading = true;
+                    const res = await this.requestGAS({
+                        action: 'changePassword', 
+                        email: this.user.email,
+                        oldPin: this.pwdForm.oldPin, 
+                        newPin: this.pwdForm.newPin
+                    });
+                    this.isLoading = false;
+                    if (res.success) { 
+                        alert('密碼修改成功！請重新登入。'); 
+                        this.showPwdModal = false; 
+                        this.logout(); 
+                    } else { 
+                        alert(res.message); 
+                    }
+                }
             }
         }).mount('#app');
     </script>
