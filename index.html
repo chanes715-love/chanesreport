@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>長安國小表單回條提醒服務</title>
+    <title>表單回條提醒系統</title>
     <!-- 使用 Vue 正式版 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -43,7 +43,7 @@
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(247, 244, 234, 0.9);
             display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #007D85; font-weight: 600; flex-direction: column;
         }
-        .dept-tag { background-color: #E6E2D6; color: #555; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold;}
+        .dept-tag { background-color: #E6E2D6; color: #555; padding: 4px 10px; border-radius: 6px; font-size: 1rem; font-weight: bold;}
         
         /* Quill 編輯器高度設定 (發布區) */
         #editor-container { height: 250px; background-color: #FFF; border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
@@ -54,8 +54,8 @@
             padding: 0 !important; 
             font-family: inherit; 
             font-size: inherit; 
-            height: auto !important;    /* 強制自動高度 */
-            min-height: 0 !important;   /* 取消預設最小高度 */
+            height: auto !important;
+            min-height: 0 !important;
         }
         
         /* 美化捲軸 */
@@ -76,11 +76,11 @@
         <!-- 頂部導覽列 -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安國小表單回條提醒總覽</h1>
+                <h1 class="text-2xl font-bold text-[#007D85]">🏫 學校表單回條總覽</h1>
                 <p v-if="isLoggedIn" class="text-gray-600 mt-1">
-                    登入者：{{ user.name }} <span class="dept-tag ml-1">{{ user.dept }}</span>
+                    登入者：{{ user.name }} <span class="dept-tag ml-1 text-sm">{{ user.dept }}</span>
                 </p>
-                <p v-else class="text-gray-500 mt-1 text-sm">各處室表單回條提醒</p>
+                <p v-else class="text-gray-500 mt-1 text-sm">各處室最新表單繳交與任務提醒</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2">
                 <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-green px-5 py-2 rounded-lg font-bold">登入發布</button>
@@ -93,10 +93,10 @@
             </div>
         </div>
 
-        <!-- 畫面一：公開佈告欄 (免登入可見) -->
-        <div v-if="currentView === 'public'" class="card p-6 border border-gray-100">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-xl font-bold">📌 各處室表單回條提醒</h2>
+        <!-- 畫面一：公開佈告欄 (免登入可見，條列式排版) -->
+        <div v-if="currentView === 'public'" class="card p-6 md:p-8 border border-gray-100">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b pb-4 gap-4">
+                <h2 class="text-2xl font-black text-gray-800">📌 最新任務提醒一覽</h2>
                 <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
                     <span class="text-sm text-gray-600 font-bold">🔍 處室過濾：</span>
                     <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32 bg-white">
@@ -106,24 +106,42 @@
                 </div>
             </div>
             
-            <div v-if="filteredPublicItems.length === 0" class="text-center text-gray-400 py-16 text-lg">
+            <div v-if="filteredPublicItems.length === 0" class="text-center text-gray-400 py-16 text-xl font-bold">
                 目前尚無符合的提醒資料，或皆已過期。
             </div>
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div v-for="item in filteredPublicItems" :key="item.id" class="p-5 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative">
-                    <div class="flex justify-between items-start mb-3">
-                        <span class="dept-tag">{{ item.dept }}</span>
-                        <div class="text-sm text-gray-400">發布者: {{ item.name }}</div>
-                    </div>
-                    <h3 class="font-bold text-[#007D85] text-xl mb-2">{{ item.formName }}</h3>
-                    <div class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-3 py-1 rounded-md mb-4">
-                        📅 繳交期限：{{ formatDeadline(item.deadline) }}
-                    </div>
+            
+            <!-- 條列式清單 (flex-col) -->
+            <div v-else class="flex flex-col gap-5">
+                <div v-for="item in filteredPublicItems" :key="item.id" 
+                     class="p-4 md:p-6 border border-gray-200 rounded-xl bg-white hover:shadow-lg transition-shadow relative flex flex-col md:flex-row items-start gap-4 md:gap-6">
                     
-                    <!-- 內容框：加入 v-if 判斷，有內容才顯示灰色框格 -->
-                    <div v-if="item.content" class="text-gray-700 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-40 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
-                    
-                    <div class="text-right text-xs text-gray-400 border-t pt-2 mt-2">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
+                    <!-- 左側：緊急/重要動態圖示 -->
+                    <div class="flex flex-col items-center justify-center min-w-[90px] p-4 rounded-xl border border-opacity-50" :class="getUrgency(item.deadline).bg">
+                        <span class="text-4xl mb-2">{{ getUrgency(item.deadline).icon }}</span>
+                        <span class="text-lg font-black tracking-widest" :class="getUrgency(item.deadline).color">{{ getUrgency(item.deadline).text }}</span>
+                    </div>
+
+                    <!-- 右側：內容資訊 -->
+                    <div class="flex-1 w-full">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-2">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <span class="dept-tag">{{ item.dept }}</span>
+                                <!-- 標題字體更大更粗 -->
+                                <h3 class="font-black text-[#007D85] text-2xl tracking-wide">{{ item.formName }}</h3>
+                            </div>
+                            <div class="text-sm text-gray-400 font-bold">發布者: {{ item.name }}</div>
+                        </div>
+                        
+                        <!-- 期限標籤 -->
+                        <div class="inline-block bg-red-50 border border-red-200 text-red-600 font-black text-lg px-4 py-1.5 rounded-lg mb-4 shadow-sm">
+                            📅 繳交期限：{{ formatDeadline(item.deadline) }}
+                        </div>
+                        
+                        <!-- 備註與說明框格：字體加粗加大 -->
+                        <div v-if="item.content" class="text-gray-800 text-base md:text-lg font-bold mb-4 bg-gray-50 p-4 rounded-xl border border-gray-200 max-h-48 overflow-y-auto custom-scrollbar display-content ql-editor leading-relaxed" v-html="item.content"></div>
+                        
+                        <div class="text-right text-xs text-gray-400 border-t pt-3 mt-2 font-bold">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,18 +182,18 @@
                             <input type="date" v-model="form.deadline" class="input-style bg-red-50 focus:bg-white" required>
                         </div>
                         <div class="mb-4">
-                            <label class="block mb-2 text-sm text-gray-700">表單/回條名稱</label>
-                            <input type="text" v-model="form.formName" class="input-style" placeholder="例如：行動載具同意書" required>
+                            <label class="block mb-2 text-sm text-gray-700 font-bold">表單/回條名稱</label>
+                            <input type="text" v-model="form.formName" class="input-style font-bold" placeholder="例如：行動載具同意書" required>
                         </div>
                     </div>
                     <div class="mb-6">
-                        <label class="block mb-2 text-sm text-gray-700">備註與說明 (選填)</label>
+                        <label class="block mb-2 text-sm text-gray-700 font-bold">備註與說明 (選填)</label>
                         <!-- Quill 編輯器容器 -->
                         <div id="editor-container"></div>
                     </div>
                     <div class="flex gap-2">
                         <button type="submit" class="flex-1 btn-green py-3 rounded-lg font-bold shadow-sm text-lg">儲存發布</button>
-                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-lg text-lg">取消</button>
+                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-lg text-lg font-bold">取消</button>
                     </div>
                 </form>
             </div>
@@ -186,26 +204,25 @@
                     <h2 class="text-xl font-bold">我的發布紀錄</h2>
                 </div>
                 
-                <div v-if="myItems.length === 0" class="text-center text-gray-400 py-10">
+                <div v-if="myItems.length === 0" class="text-center text-gray-400 py-10 font-bold">
                     您目前沒有發布中的提醒。
                 </div>
                 <div v-else class="space-y-4">
                     <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
                         <div class="flex flex-col gap-2 mb-2">
-                            <span class="font-bold text-[#007D85] text-lg leading-tight">{{ item.formName }}</span>
+                            <span class="font-black text-[#007D85] text-lg leading-tight">{{ item.formName }}</span>
                             <div class="flex gap-2">
                                 <button @click="editItem(item)" class="text-sm text-blue-600 hover:text-blue-800 font-bold px-3 py-1 bg-blue-50 rounded-md">修改</button>
                                 <button @click="deleteItem(item.id)" class="text-sm text-red-500 hover:text-red-700 font-bold px-3 py-1 bg-red-50 rounded-md">刪除</button>
                             </div>
                         </div>
-                        <div class="mt-2 text-red-600 font-bold text-sm mb-3">
+                        <div class="mt-2 text-red-600 font-black text-sm mb-3">
                             📅 繳交期限：<br>{{ formatDeadline(item.deadline) }}
                         </div>
                         
-                        <!-- 內容框：加入 v-if 判斷，有內容才顯示灰色框格 -->
-                        <div v-if="item.content" class="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200 max-h-40 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
+                        <div v-if="item.content" class="text-sm text-gray-800 font-bold bg-white p-3 rounded-lg border border-gray-200 max-h-40 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                         
-                        <div class="text-right text-xs text-gray-400 mt-3">更新: {{ formatTaiwanTime(item.timestamp) }}</div>
+                        <div class="text-right text-xs text-gray-400 mt-3 font-bold">更新: {{ formatTaiwanTime(item.timestamp) }}</div>
                     </div>
                 </div>
             </div>
@@ -214,22 +231,22 @@
         <!-- 修改密碼 Modal -->
         <div v-if="showPwdModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40">
             <div class="card p-8 w-96 max-w-[90%]">
-                <h2 class="text-xl font-bold mb-6 text-center text-[#007D85]">修改密碼</h2>
+                <h2 class="text-xl font-black mb-6 text-center text-[#007D85]">修改密碼</h2>
                 <form @submit.prevent="changePassword">
                     <div class="mb-4">
-                        <label class="block mb-1 text-sm text-gray-600">舊密碼</label>
+                        <label class="block mb-1 text-sm text-gray-600 font-bold">舊密碼</label>
                         <input type="password" v-model="pwdForm.oldPin" class="input-style" required>
                     </div>
                     <div class="mb-4">
-                        <label class="block mb-1 text-sm text-gray-600">新密碼</label>
+                        <label class="block mb-1 text-sm text-gray-600 font-bold">新密碼</label>
                         <input type="password" v-model="pwdForm.newPin" class="input-style" required>
                     </div>
                     <div class="mb-6">
-                        <label class="block mb-1 text-sm text-gray-600">確認新密碼</label>
+                        <label class="block mb-1 text-sm text-gray-600 font-bold">確認新密碼</label>
                         <input type="password" v-model="pwdForm.confirm" class="input-style" required>
                     </div>
                     <div class="flex justify-end gap-3">
-                        <button type="button" @click="showPwdModal = false; pwdForm={}" class="btn-gray px-4 py-2 rounded-lg">取消</button>
+                        <button type="button" @click="showPwdModal = false; pwdForm={}" class="btn-gray px-4 py-2 rounded-lg font-bold">取消</button>
                         <button type="submit" class="btn-green px-4 py-2 rounded-lg font-bold">確認修改</button>
                     </div>
                 </form>
@@ -280,7 +297,7 @@
                         const diffTime = today.getTime() - deadlineDate.getTime();
                         const diffDays = diffTime / (1000 * 3600 * 24);
                         
-                        return diffDays <= 7;
+                        return diffDays <= 7; // 過期超過7天隱藏
                     });
                 },
                 availableDepts() {
@@ -288,8 +305,17 @@
                     return Array.from(depts).filter(Boolean);
                 },
                 filteredPublicItems() {
-                    if (!this.searchDept) return this.validItems;
-                    return this.validItems.filter(item => item.dept === this.searchDept);
+                    let filtered = this.validItems;
+                    if (this.searchDept) {
+                        filtered = filtered.filter(item => item.dept === this.searchDept);
+                    }
+                    
+                    // 自動依照日期排序：越接近今天的排在越上面 (日期越小的在前面)
+                    return filtered.sort((a, b) => {
+                        if (!a.deadline) return 1; // 沒有期限的放最後面
+                        if (!b.deadline) return -1;
+                        return new Date(a.deadline) - new Date(b.deadline);
+                    });
                 },
                 myItems() {
                     if (!this.user) return [];
@@ -298,6 +324,25 @@
                 }
             },
             methods: {
+                // 動態判斷緊急程度圖示
+                getUrgency(deadline) {
+                    if (!deadline) return { icon: '📌', text: '重要', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' };
+                    
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const d = new Date(deadline);
+                    d.setHours(0, 0, 0, 0);
+                    
+                    const diffDays = (d.getTime() - today.getTime()) / (1000 * 3600 * 24);
+                    
+                    if (diffDays < 0) {
+                        return { icon: '🚨', text: '逾期', color: 'text-red-700', bg: 'bg-red-50 border-red-300' };
+                    } else if (diffDays <= 3) {
+                        return { icon: '🔥', text: '緊急', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-300' };
+                    } else {
+                        return { icon: '📌', text: '重要', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' };
+                    }
+                },
                 async requestGAS(payload) {
                     try {
                         const res = await fetch(this.scriptUrl, {
@@ -359,6 +404,7 @@
                     this.isLoading = true;
                     const res = await this.requestGAS({ action: 'load' });
                     if (res.success) {
+                        // 後台維持由新到舊顯示發布紀錄
                         this.items = res.items.reverse(); 
                     }
                     this.isLoading = false;
