@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>長安國小表單回條繳交提醒系統</title>
+    <title>表單回條提醒系統</title>
     <!-- 使用 Vue 正式版 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -77,11 +77,11 @@
         <!-- 頂部導覽列 -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安表單回條繳交總覽</h1>
+                <h1 class="text-2xl font-bold text-[#007D85]">🏫 學校表單回條總覽</h1>
                 <p v-if="isLoggedIn" class="text-gray-600 mt-1 text-sm">
                     登入者：{{ user.name }} <span class="dept-tag ml-1 text-xs">{{ user.dept }}</span>
                 </p>
-                <p v-else class="text-gray-500 mt-1 text-sm">各處室最新回條表單繳交提醒</p>
+                <p v-else class="text-gray-500 mt-1 text-sm">各處室最新表單繳交與任務提醒</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2">
                 <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-green px-4 py-2 rounded-lg font-bold text-sm">登入發布</button>
@@ -97,7 +97,7 @@
         <!-- 畫面一：公開佈告欄 -->
         <div v-if="currentView === 'public'" class="card p-4 md:p-6 border border-gray-100">
             <div class="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-3 gap-3">
-               
+                <h2 class="text-xl font-black text-gray-800">📌 最新任務提醒一覽</h2>
                 <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                     <span class="text-xs text-gray-600 font-bold ml-1">🔍 處室過濾：</span>
                     <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32 bg-white">
@@ -111,19 +111,12 @@
                 目前尚無符合的提醒資料，或皆已過期。
             </div>
             
-            <!-- 條列式清單 -->
+            <!-- 條列式清單 (已移除最左側圖示) -->
             <div v-else class="flex flex-col gap-3">
                 <div v-for="item in filteredPublicItems" :key="item.id" 
-                     class="p-3 md:p-4 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative flex flex-col md:flex-row items-start gap-3 md:gap-4">
+                     class="p-3 md:p-4 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative">
                     
-                    <!-- 左側：圖示 -->
-                    <div class="flex flex-col items-center justify-center min-w-[75px] p-2 rounded-lg border border-opacity-50" :class="getUrgency(item.deadline).bg">
-                        <span class="text-2xl mb-1">{{ getUrgency(item.deadline).icon }}</span>
-                        <span class="text-sm font-black tracking-widest" :class="getUrgency(item.deadline).color">{{ getUrgency(item.deadline).text }}</span>
-                    </div>
-
-                    <!-- 右側：內容資訊 -->
-                    <div class="flex-1 w-full min-w-0">
+                    <div class="w-full">
                         <div class="flex flex-col md:flex-row justify-between items-start mb-2 gap-2">
                             <!-- 標題與期限同一列 -->
                             <div class="flex items-center gap-2 flex-wrap">
@@ -141,7 +134,7 @@
                             </div>
                         </div>
                         
-                        <!-- 備註與說明框格 (移除底部分隔線) -->
+                        <!-- 備註與說明框格 -->
                         <div v-if="item.content" class="text-gray-800 text-sm md:text-base font-bold mb-1 bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                     </div>
                 </div>
@@ -184,7 +177,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="block mb-1 text-sm text-gray-700 font-bold">表單/回條名稱</label>
-                            <input type="text" v-model="form.formName" class="input-style font-bold" placeholder="   " required>
+                            <input type="text" v-model="form.formName" class="input-style font-bold" placeholder="例如：行動載具同意書" required>
                         </div>
                     </div>
                     <div class="mb-4">
@@ -325,24 +318,6 @@
                 }
             },
             methods: {
-                getUrgency(deadline) {
-                    if (!deadline) return { icon: '📌', text: '重要', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' };
-                    
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const d = new Date(deadline);
-                    d.setHours(0, 0, 0, 0);
-                    
-                    const diffDays = (d.getTime() - today.getTime()) / (1000 * 3600 * 24);
-                    
-                    if (diffDays < 0) {
-                        return { icon: '🚨', text: '逾期', color: 'text-red-700', bg: 'bg-red-50 border-red-300' };
-                    } else if (diffDays <= 3) {
-                        return { icon: '🔥', text: '緊急', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-300' };
-                    } else {
-                        return { icon: '📌', text: '重要', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' };
-                    }
-                },
                 async requestGAS(payload) {
                     try {
                         const res = await fetch(this.scriptUrl, {
