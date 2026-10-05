@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>長安國小表單回條提醒系統</title>
+    <title>長安國小表單回條繳交提醒系統</title>
     <!-- 使用 Vue 正式版 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -64,6 +64,11 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        /* 分頁按鈕美化 */
+        .page-btn { padding: 0.4rem 1rem; border: 1px solid #CBD5E1; border-radius: 0.5rem; background-color: #FFF; color: #4A4A4A; font-weight: bold; transition: 0.2s; }
+        .page-btn:hover:not(:disabled) { background-color: #F1F5F9; border-color: #94A3B8; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #F8FAFC; }
     </style>
 </head>
 <body>
@@ -77,11 +82,11 @@
         <!-- 頂部導覽列 -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安國小表單回條繳交總覽</h1>
+                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安國小表單回條繳交提醒總覽</h1>
                 <p v-if="isLoggedIn" class="text-gray-600 mt-1 text-sm">
                     登入者：{{ user.name }} <span class="dept-tag ml-1 text-xs">{{ user.dept }}</span>
                 </p>
-                <p v-else class="text-gray-500 mt-1 text-sm">各處室最新表單繳交與任務提醒</p>
+                <p v-else class="text-gray-500 mt-1 text-sm">各處室表單回條繳交提醒</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2">
                 <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-green px-4 py-2 rounded-lg font-bold text-sm">登入發布</button>
@@ -97,7 +102,7 @@
         <!-- 畫面一：公開佈告欄 -->
         <div v-if="currentView === 'public'" class="card p-4 md:p-6 border border-gray-100">
             <div class="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-3 gap-3">
-             
+
                 <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                     <span class="text-xs text-gray-600 font-bold ml-1">🔍 處室過濾：</span>
                     <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32 bg-white">
@@ -111,41 +116,56 @@
                 目前尚無符合的提醒資料，或皆已過期。
             </div>
             
-            <!-- 條列式清單 -->
-            <div v-else class="flex flex-col gap-3">
-                <div v-for="item in filteredPublicItems" :key="item.id" 
-                     class="p-3 md:p-4 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative flex flex-col md:flex-row items-start gap-3 md:gap-4">
-                    
-                    <!-- 左側：圖示 (只有緊急或逾期才會顯示，其他狀態隱藏) -->
-                    <div v-if="getUrgency(item.deadline).show" 
-                         class="flex flex-col items-center justify-center min-w-[75px] p-2 rounded-lg border border-opacity-50" 
-                         :class="getUrgency(item.deadline).bg">
-                        <span class="text-2xl mb-1">{{ getUrgency(item.deadline).icon }}</span>
-                        <span class="text-sm font-black tracking-widest" :class="getUrgency(item.deadline).color">{{ getUrgency(item.deadline).text }}</span>
-                    </div>
-
-                    <!-- 右側：內容資訊 -->
-                    <div class="flex-1 w-full min-w-0">
-                        <div class="flex flex-col md:flex-row justify-between items-start mb-2 gap-2">
-                            <!-- 標題與期限同一列 -->
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="dept-tag">{{ item.dept }}</span>
-                                <h3 class="font-black text-[#007D85] text-xl tracking-wide">{{ item.formName }}</h3>
-                                <span class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-2 py-0.5 rounded shadow-sm">
-                                    📅 繳交期限：{{ formatDeadline(item.deadline) }}
-                                </span>
+            <div v-else>
+                <!-- 條列式清單 (替換為分頁後的資料 paginatedPublicItems) -->
+                <div class="flex flex-col gap-3">
+                    <div v-for="item in paginatedPublicItems" :key="item.id" 
+                         class="p-3 md:p-4 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative flex flex-col md:flex-row items-start gap-3 md:gap-4">
+                        
+                        <!-- 左側：圖示 -->
+                        <div v-if="getUrgency(item.deadline).show" 
+                             class="flex flex-col items-center justify-center min-w-[75px] p-2 rounded-lg border border-opacity-50" 
+                             :class="getUrgency(item.deadline).bg">
+                            <span class="text-2xl mb-1">{{ getUrgency(item.deadline).icon }}</span>
+                            <span class="text-sm font-black tracking-widest" :class="getUrgency(item.deadline).color">{{ getUrgency(item.deadline).text }}</span>
+                        </div>
+    
+                        <!-- 右側：內容資訊 -->
+                        <div class="flex-1 w-full min-w-0">
+                            <div class="flex flex-col md:flex-row justify-between items-start mb-2 gap-2">
+                                <!-- 標題與期限同一列 -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="dept-tag">{{ item.dept }}</span>
+                                    <h3 class="font-black text-[#007D85] text-xl tracking-wide">{{ item.formName }}</h3>
+                                    <span class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-2 py-0.5 rounded shadow-sm">
+                                        📅 繳交期限：{{ formatDeadline(item.deadline) }}
+                                    </span>
+                                </div>
+                                
+                                <!-- 發布者與最後更新時間 -->
+                                <div class="flex flex-col items-start md:items-end gap-0.5">
+                                    <div class="text-xs text-gray-400 font-bold whitespace-nowrap">發布者: {{ item.name }}</div>
+                                    <div class="text-[11px] text-gray-400 font-bold whitespace-nowrap">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
+                                </div>
                             </div>
                             
-                            <!-- 發布者與最後更新時間 (集中於右上方) -->
-                            <div class="flex flex-col items-start md:items-end gap-0.5">
-                                <div class="text-xs text-gray-400 font-bold whitespace-nowrap">發布者: {{ item.name }}</div>
-                                <div class="text-[11px] text-gray-400 font-bold whitespace-nowrap">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
-                            </div>
+                            <!-- 備註與說明框格 -->
+                            <div v-if="item.content" class="text-gray-800 text-sm md:text-base font-bold mb-1 bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                         </div>
-                        
-                        <!-- 備註與說明框格 (移除底部分隔線) -->
-                        <div v-if="item.content" class="text-gray-800 text-sm md:text-base font-bold mb-1 bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
                     </div>
+                </div>
+
+                <!-- 分頁控制器 -->
+                <div v-if="totalPages > 1" class="flex justify-center items-center gap-4 mt-6 pt-4 border-t border-dashed border-gray-200">
+                    <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">
+                        ◀ 上一頁
+                    </button>
+                    <span class="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full">
+                        第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁
+                    </span>
+                    <button @click="nextPage" :disabled="currentPage === totalPages" class="page-btn">
+                        下一頁 ▶
+                    </button>
                 </div>
             </div>
         </div>
@@ -176,7 +196,6 @@
         <!-- 畫面三：發布者後台 Dashboard -->
         <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-5">
             
-            <!-- 發布區塊 -->
             <div class="md:col-span-7 card p-5 h-fit border border-gray-100">
                 <h2 class="text-lg font-bold mb-3 border-b pb-2 text-[#007D85]">{{ form.id ? '編輯提醒' : '發布新提醒' }}</h2>
                 <form @submit.prevent="saveItem">
@@ -201,7 +220,6 @@
                 </form>
             </div>
 
-            <!-- 我的發布紀錄區塊 -->
             <div class="md:col-span-3 card p-5 border border-gray-100 h-fit max-h-[700px] overflow-y-auto custom-scrollbar">
                 <div class="flex justify-between items-center mb-3 border-b pb-2">
                     <h2 class="text-lg font-bold">我的發布紀錄</h2>
@@ -279,6 +297,10 @@
                     items: [], 
                     searchDept: '', 
                     
+                    // 分頁相關參數
+                    currentPage: 1,
+                    itemsPerPage: 10,
+                    
                     form: { id: null, deadline: '', formName: '', content: '' },
                     quillEditor: null, 
                     
@@ -289,6 +311,12 @@
             mounted() { 
                 this.loadData();
                 this.fetchUsers(); 
+            },
+            watch: {
+                // 當處室過濾條件改變時，自動回到第一頁
+                searchDept() {
+                    this.currentPage = 1;
+                }
             },
             computed: {
                 validItems() {
@@ -316,11 +344,22 @@
                         filtered = filtered.filter(item => item.dept === this.searchDept);
                     }
                     
+                    // 日期排序：越接近今天的排上面
                     return filtered.sort((a, b) => {
                         if (!a.deadline) return 1;
                         if (!b.deadline) return -1;
                         return new Date(a.deadline) - new Date(b.deadline);
                     });
+                },
+                // 分頁計算：總頁數
+                totalPages() {
+                    return Math.ceil(this.filteredPublicItems.length / this.itemsPerPage) || 1;
+                },
+                // 分頁計算：目前頁面要顯示的 10 筆資料
+                paginatedPublicItems() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredPublicItems.slice(start, end);
                 },
                 myItems() {
                     if (!this.user) return [];
@@ -329,7 +368,19 @@
                 }
             },
             methods: {
-                // 判斷緊急程度，非緊急/逾期則不顯示 (show: false)
+                // 分頁切換功能
+                nextPage() {
+                    if (this.currentPage < this.totalPages) {
+                        this.currentPage++;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                },
+                prevPage() {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                },
                 getUrgency(deadline) {
                     if (!deadline) return { show: false };
                     
@@ -345,7 +396,6 @@
                     } else if (diffDays <= 3) {
                         return { show: true, icon: '🔥', text: '緊急', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-300' };
                     } else {
-                        // 距離期限還大於3天，不顯示圖示
                         return { show: false };
                     }
                 },
