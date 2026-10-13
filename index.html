@@ -3,252 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>長安國小表單回條繳交提醒系統</title>
-    <!-- 使用 Vue 正式版 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 日系字體 Klee One -->
-    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+    <title>長安表單繳交提醒系統</title>
     
-    <!-- 引入 Quill.js 富文本編輯器樣式 -->
+    <!-- 隱藏 Tailwind CDN 警告 -->
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function() { if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].includes('cdn.tailwindcss.com')) return; originalWarn.apply(console, arguments); };
+    </script>
+
+    <!-- 引入字體：全面改為 Noto Serif TC (思源宋體) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+    
+    <!-- SheetJS 用於解析 Excel 匯入 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        body {
-            font-family: 'Klee One', cursive, sans-serif;
-            background-color: #F7F4EA;
-            color: #4A4A4A;
-        }
-        .bg-teal { background-color: #007D85; }
-        .btn-primary { background-color: #007D85; color: #FFF; transition: 0.2s; }
-        .btn-primary:hover { background-color: #006066; }
-        .btn-green { background-color: #798D6C; color: #FFF; transition: 0.2s; }
-        .btn-green:hover { background-color: #637557; }
-        .btn-gray { background-color: #B0B0B0; color: #FFF; transition: 0.2s; }
+        [v-cloak] { display: none !important; }
         
-        .card { background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        .input-style {
-            width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #CBD5E1;
-            border-radius: 0.375rem; background-color: #FFF; outline: none; transition: 0.2s; color: #007D85;
+        /* 全面套用明體/宋體風格 */
+        body { 
+            font-family: 'Noto Serif TC', serif; 
+            background-color: #C5DEB4; 
+            color: #2C3E3A; 
+            margin: 0; 
+            font-weight: 600; 
         }
-        .input-style:focus { border-color: #007D85; box-shadow: 0 0 0 2px rgba(0,125,133,0.2); }
         
-        .hint-box {
-            background-color: #F8FAFC; border: 2px dashed #CBD5E1; border-radius: 8px;
-            padding: 12px; color: #64748B; font-size: 0.9rem; text-align: center; margin-bottom: 12px;
+        .title-font { font-family: 'Noto Serif TC', serif; font-weight: 900; }
+        
+        /* 按鈕顏色重塑 */
+        .btn-orange { background-color: #EAA44D; color: #FFF; transition: 0.2s; font-weight: 700; }
+        .btn-orange:hover { background-color: #D6913C; }
+        .btn-green { background-color: #5D8B6E; color: #FFF; transition: 0.2s; font-weight: 700; }
+        .btn-green:hover { background-color: #4A7359; }
+        .btn-gray { background-color: #8D9B96; color: #FFF; transition: 0.2s; font-weight: 700; }
+        .btn-gray:hover { background-color: #72807B; }
+        
+        /* 搜尋列造型 (膠囊狀) */
+        .search-bar-container {
+            background: white; border-radius: 9999px; padding: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex; align-items: center; max-width: 600px; margin: 0 auto;
         }
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(247, 244, 234, 0.9);
-            display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #007D85; font-weight: 600; flex-direction: column;
+        .search-input {
+            border: none; outline: none; background: transparent; padding: 12px 20px; width: 100%; font-size: 1rem; font-weight: 700;
         }
-        .dept-tag { background-color: #E6E2D6; color: #555; padding: 2px 8px; border-radius: 6px; font-size: 0.9rem; font-weight: bold;}
-        
-        /* Quill 編輯器高度設定 */
-        #editor-container { height: 200px; background-color: #FFF; border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
-        .ql-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; background-color: #F8FAFC; }
-        
-        /* 調整閱讀模式下 Quill 的預設 padding 與行距 */
-        .display-content.ql-editor { 
-            padding: 0 !important; 
-            font-family: inherit; 
-            font-size: inherit; 
-            height: auto !important;
-            min-height: 0 !important;
-            line-height: 1.4;
+        .search-btn {
+            background-color: #EAA44D; color: white; border-radius: 9999px; padding: 10px 24px; font-weight: 900; letter-spacing: 1px; transition: 0.2s;
         }
-        .display-content.ql-editor p { margin-bottom: 0.25rem; }
+        .search-btn:hover { background-color: #D6913C; }
+
+        /* 卡片造型 */
+        .item-card { 
+            background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.06); 
+            overflow: hidden; border: none; transition: transform 0.2s;
+        }
+        .item-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         
-        /* 美化捲軸 */
+        /* 卡片頂部的彩色標籤區塊 */
+        .card-tag { padding: 4px 12px; font-weight: 900; font-size: 0.85rem; display: inline-block; border-radius: 4px; color: white; margin-bottom: 12px; }
+        .tag-red { background-color: #C94C45; }
+        .tag-yellow { background-color: #EAA44D; }
+        .tag-green { background-color: #78A179; }
+        .tag-teal { background-color: #4A8C8C; }
+        .tag-purple { background-color: #8C6A9E; }
+        .tag-gray { background-color: #8D9B96; }
+
+        .input-style { width: 100%; padding: 0.6rem 0.75rem; border: 2px solid #E2E8F0; border-radius: 0.5rem; background-color: #FFF; outline: none; transition: 0.2s; font-weight: 600; }
+        .input-style:focus { border-color: #5D8B6E; }
+        
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(197, 222, 180, 0.9); display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #2C3E3A; font-weight: 900; flex-direction: column; }
+        
+        #editor-container { height: 180px; background-color: #FFF; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
+        .ql-toolbar { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background-color: #F8FAFC; border-color: #E2E8F0; }
+        .display-content.ql-editor { padding: 0 !important; font-family: inherit; font-size: inherit; height: auto !important; min-height: 0 !important; line-height: 1.5; font-weight: 600; }
+        
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-        
-        /* 分頁按鈕美化 */
-        .page-btn { padding: 0.4rem 1rem; border: 1px solid #CBD5E1; border-radius: 0.5rem; background-color: #FFF; color: #4A4A4A; font-weight: bold; transition: 0.2s; }
-        .page-btn:hover:not(:disabled) { background-color: #F1F5F9; border-color: #94A3B8; }
-        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #F8FAFC; }
     </style>
 </head>
 <body>
-    <div id="app" class="max-w-6xl mx-auto p-3 md:p-6">
+    <div id="app" v-cloak class="max-w-6xl mx-auto p-4 md:p-8">
         
-        <!-- 載入中遮罩 -->
         <div v-if="isLoading" class="loading-overlay">
-            <div>處理中，請稍候... 🍵</div>
+            <div>🚀 系統處理中，請稍候...</div>
         </div>
 
-        <!-- 頂部導覽列 -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div>
-                <h1 class="text-2xl font-bold text-[#007D85]">🏫 長安國小表單回條繳交提醒總覽</h1>
-                <p v-if="isLoggedIn" class="text-gray-600 mt-1 text-sm">
-                    登入者：{{ user.name }} <span class="dept-tag ml-1 text-xs">{{ user.dept }}</span>
-                </p>
-                <p v-else class="text-gray-500 mt-1 text-sm">各處室表單回條繳交提醒</p>
-            </div>
-            <div class="mt-4 md:mt-0 flex gap-2">
-                <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-green px-4 py-2 rounded-lg font-bold text-sm">登入發布</button>
-                <button v-if="currentView === 'login'" @click="currentView = 'public'" class="btn-gray px-4 py-2 rounded-lg text-sm">返回佈告欄</button>
+        <!-- 頂部標題與按鈕區 -->
+        <div class="flex flex-col items-center mb-10 mt-6 gap-3">
+            <div class="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 w-full">
+                <!-- 標題 -->
+                <h1 class="text-4xl md:text-5xl title-font text-[#2C3E3A] tracking-wider flex justify-center items-center gap-3 m-0 text-center">
+                    <span>📋</span> 長安表單繳交系統
+                </h1>
                 
-                <template v-if="isLoggedIn">
-                    <button @click="showPwdModal = true" class="btn-gray px-3 py-2 rounded-lg hover:bg-gray-500 text-sm">修改密碼</button>
-                    <button @click="logout" class="bg-red-400 text-white px-3 py-2 rounded-lg hover:bg-red-500 text-sm">登出</button>
-                </template>
+                <!-- 控制按鈕 -->
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button v-if="currentView === 'public'" @click="currentView = 'login'" class="btn-gray px-4 py-2 rounded-full text-sm shadow">發布登入</button>
+                    <button v-if="currentView !== 'public'" @click="currentView = 'public'" class="btn-gray px-4 py-2 rounded-full text-sm shadow">返回首頁</button>
+                    <template v-if="isLoggedIn">
+                        <button @click="currentView = 'dashboard'" class="btn-green px-4 py-2 rounded-full text-sm shadow">我的發布</button>
+                        <button v-if="user.isAdmin" @click="currentView = 'admin'" class="btn-orange px-4 py-2 rounded-full text-sm shadow">使用者管理</button>
+                        <button @click="logout" class="bg-red-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow">登出</button>
+                    </template>
+                </div>
             </div>
+            
+            <!-- 登入狀態提示 -->
+            <p v-if="isLoggedIn" class="text-[#5D8B6E] font-bold text-lg m-0">
+                登入者：{{ user.name }} ({{ user.dept }})
+            </p>
         </div>
 
         <!-- 畫面一：公開佈告欄 -->
-        <div v-if="currentView === 'public'" class="card p-4 md:p-6 border border-gray-100">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-3 gap-3">
+        <div v-if="currentView === 'public'">
+            
+            <div class="search-bar-container mb-12">
+                <span class="pl-4 text-gray-400">🔍</span>
+                <select v-model="searchDept" class="search-input text-[#2C3E3A]">
+                    <option value="">選擇處室過濾 (顯示全部)...</option>
+                    <option v-for="dept in availableDepts" :key="dept" :value="dept">{{ dept }}</option>
+                </select>
+                <button @click="currentPage = 1" class="search-btn">SEARCH</button>
+            </div>
 
-                <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-                    <span class="text-xs text-gray-600 font-bold ml-1">🔍 處室過濾：</span>
-                    <select v-model="searchDept" class="input-style py-1 px-2 text-sm w-32 bg-white">
-                        <option value="">顯示全部</option>
-                        <option v-for="dept in availableDepts" :key="dept" :value="dept">{{ dept }}</option>
-                    </select>
-                </div>
+            <div v-if="filteredPublicItems.length === 0" class="text-center text-[#5D8B6E] py-10 text-xl font-bold">
+                目前尚無符合的提醒資料。
             </div>
             
-            <div v-if="filteredPublicItems.length === 0" class="text-center text-gray-400 py-10 text-lg font-bold">
-                目前尚無符合的提醒資料，或皆已過期。
-            </div>
-            
-            <div v-else>
-                <!-- 條列式清單 (替換為分頁後的資料 paginatedPublicItems) -->
-                <div class="flex flex-col gap-3">
-                    <div v-for="item in paginatedPublicItems" :key="item.id" 
-                         class="p-3 md:p-4 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative flex flex-col md:flex-row items-start gap-3 md:gap-4">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div v-for="item in paginatedPublicItems" :key="item.id" class="item-card flex flex-col p-5">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="card-tag shadow-sm" :class="getDeptColor(item.dept)">
+                            {{ item.dept }}
+                        </span>
                         
-                        <!-- 左側：圖示 -->
-                        <div v-if="getUrgency(item.deadline).show" 
-                             class="flex flex-col items-center justify-center min-w-[75px] p-2 rounded-lg border border-opacity-50" 
-                             :class="getUrgency(item.deadline).bg">
-                            <span class="text-2xl mb-1">{{ getUrgency(item.deadline).icon }}</span>
-                            <span class="text-sm font-black tracking-widest" :class="getUrgency(item.deadline).color">{{ getUrgency(item.deadline).text }}</span>
+                        <!-- 緊急/逾期圖示與文字標註 -->
+                        <div v-if="getUrgency(item.deadline).show" class="flex flex-col items-center justify-start mt-[-4px]">
+                            <span class="text-3xl leading-none drop-shadow-md">{{ getUrgency(item.deadline).icon }}</span>
+                            <span class="text-xs font-black mt-1 tracking-widest" :class="getUrgency(item.deadline).color">
+                                {{ getUrgency(item.deadline).text }}
+                            </span>
                         </div>
-    
-                        <!-- 右側：內容資訊 -->
-                        <div class="flex-1 w-full min-w-0">
-                            <div class="flex flex-col md:flex-row justify-between items-start mb-2 gap-2">
-                                <!-- 標題與期限同一列 -->
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="dept-tag">{{ item.dept }}</span>
-                                    <h3 class="font-black text-[#007D85] text-xl tracking-wide">{{ item.formName }}</h3>
-                                    <span class="inline-block bg-red-50 border border-red-200 text-red-600 font-bold text-sm px-2 py-0.5 rounded shadow-sm">
-                                        📅 繳交期限：{{ formatDeadline(item.deadline) }}
-                                    </span>
-                                </div>
-                                
-                                <!-- 發布者與最後更新時間 -->
-                                <div class="flex flex-col items-start md:items-end gap-0.5">
-                                    <div class="text-xs text-gray-400 font-bold whitespace-nowrap">發布者: {{ item.name }}</div>
-                                    <div class="text-[11px] text-gray-400 font-bold whitespace-nowrap">最後更新: {{ formatTaiwanTime(item.timestamp) }}</div>
-                                </div>
-                            </div>
-                            
-                            <!-- 備註與說明框格 -->
-                            <div v-if="item.content" class="text-gray-800 text-sm md:text-base font-bold mb-1 bg-gray-50 p-2.5 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor" v-html="item.content"></div>
+                    </div>
+
+                    <h3 class="title-font font-black text-2xl mb-3 text-[#2C3E3A] leading-snug">{{ item.formName }}</h3>
+                    
+                    <div v-if="item.content" class="bg-[#FFF9E6] p-4 rounded-lg mb-4 text-[#4A4A4A] text-sm display-content ql-editor flex-grow border border-[#FDE68A]" v-html="item.content"></div>
+                    <div v-else class="flex-grow"></div>
+
+                    <div class="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-1">
+                        <div class="text-red-600 font-black text-[15px]">
+                            📅 期限: {{ formatDeadline(item.deadline) }}
+                        </div>
+                        <div class="text-xs text-gray-400 font-bold text-right mt-1">
+                            發布: {{ item.name }} | 更新: {{ formatTaiwanTime(item.timestamp) }}
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 分頁控制器 -->
-                <div v-if="totalPages > 1" class="flex justify-center items-center gap-4 mt-6 pt-4 border-t border-dashed border-gray-200">
-                    <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">
-                        ◀ 上一頁
-                    </button>
-                    <span class="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full">
-                        第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁
-                    </span>
-                    <button @click="nextPage" :disabled="currentPage === totalPages" class="page-btn">
-                        下一頁 ▶
-                    </button>
-                </div>
+            <!-- 分頁控制器 -->
+            <div v-if="totalPages > 1" class="flex justify-center items-center gap-4 mt-10">
+                <button @click="prevPage" :disabled="currentPage === 1" class="btn-gray px-4 py-2 rounded-full shadow disabled:opacity-50">◀</button>
+                <span class="font-bold text-[#2C3E3A] bg-white px-5 py-2 rounded-full shadow-sm">
+                    {{ currentPage }} / {{ totalPages }}
+                </span>
+                <button @click="nextPage" :disabled="currentPage === totalPages" class="btn-gray px-4 py-2 rounded-full shadow disabled:opacity-50">▶</button>
             </div>
         </div>
 
         <!-- 畫面二：登入畫面 -->
-        <div v-if="currentView === 'login'" class="card p-8 max-w-sm mx-auto mt-10 border-t-4 border-t-[#007D85]">
-            <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">後台登入</h1>
+        <div v-if="currentView === 'login'" class="bg-white p-8 rounded-2xl shadow-xl max-w-sm mx-auto mt-10 border-t-8 border-[#5D8B6E]">
+            <h1 class="text-2xl title-font text-center mb-6 text-[#2C3E3A]">管理員/發布者登入</h1>
             <form @submit.prevent="login">
-                <div class="mb-6">
-                    <select v-model="loginForm.name" class="input-style cursor-pointer text-lg bg-gray-50" required>
-                        <option disabled value="">-- 請選擇您的姓名 --</option>
-                        <option v-for="u in userList" :key="u.name" :value="u.name">{{ u.name }}</option>
+                <div class="mb-5">
+                    <label class="block text-sm font-bold text-gray-600 mb-2">請選擇姓名</label>
+                    <select v-model="loginForm.name" class="input-style" required>
+                        <option disabled value="">-- 點擊下拉選擇 --</option>
+                        <option v-for="u in userList" :key="u.name" :value="u.name" v-show="u.name !== 'admin'">{{ u.name }}</option>
+                        <option value="admin">👑 admin (系統管理員)</option>
                     </select>
                 </div>
-                <div class="mb-8">
-                    <div class="hint-box">
-                        💡 請輸入 <b>mail.chanes.tc.edu.tw</b> 帳號<br>
-                        <span class="text-xs">(預設密碼為 @ 前的帳號)</span>
-                    </div>
-                    <input type="password" v-model="loginForm.pin" class="input-style" placeholder="輸入密碼..." required>
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-600 mb-2">密碼 (PIN碼)</label>
+                    <input type="password" v-model="loginForm.pin" class="input-style" placeholder="請輸入密碼..." required>
                 </div>
-                <button type="submit" class="w-full btn-primary py-3 rounded-xl text-xl font-bold tracking-widest shadow-md">
-                    Login 登入
-                </button>
+                <button type="submit" class="w-full btn-green py-3 mt-4 rounded-xl text-lg tracking-widest shadow-md">登入系統</button>
             </form>
         </div>
 
-        <!-- 畫面三：發布者後台 Dashboard -->
-        <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-5">
-            
-            <div class="md:col-span-7 card p-5 h-fit border border-gray-100">
-                <h2 class="text-lg font-bold mb-3 border-b pb-2 text-[#007D85]">{{ form.id ? '編輯提醒' : '發布新提醒' }}</h2>
+        <!-- 畫面三：發布者 Dashboard -->
+        <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-6">
+            <div class="md:col-span-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-fit">
+                <h2 class="text-xl title-font mb-4 text-[#5D8B6E] border-b pb-2">{{ form.id ? '✏️ 編輯提醒' : '📝 發布新提醒' }}</h2>
                 <form @submit.prevent="saveItem">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-3">
-                            <label class="block mb-1 text-sm text-gray-700 font-bold">繳交期限</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block mb-1 text-sm font-bold text-gray-700">📅 繳交期限</label>
                             <input type="date" v-model="form.deadline" class="input-style bg-red-50 focus:bg-white" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="block mb-1 text-sm text-gray-700 font-bold">表單/回條名稱</label>
+                        <div>
+                            <label class="block mb-1 text-sm font-bold text-gray-700">📑 表單名稱</label>
                             <input type="text" v-model="form.formName" class="input-style font-bold" placeholder="例如：行動載具同意書" required>
                         </div>
                     </div>
-                    <div class="mb-4">
-                        <label class="block mb-1 text-sm text-gray-700 font-bold">備註與說明 (選填)</label>
+                    <div class="mb-5">
+                        <label class="block mb-1 text-sm font-bold text-gray-700">💡 備註與說明 (選填)</label>
                         <div id="editor-container"></div>
                     </div>
+                    <div class="flex gap-3">
+                        <button type="submit" class="flex-1 btn-green py-3 rounded-xl shadow-md text-lg">{{ form.id ? '儲存更新' : '確認發布' }}</button>
+                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-xl text-lg">取消</button>
+                    </div>
+                </form>
+            </div>
+            <div class="md:col-span-4 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-fit max-h-[700px] overflow-y-auto custom-scrollbar">
+                <h2 class="text-xl title-font mb-4 text-[#5D8B6E] border-b pb-2">📋 我的發布紀錄</h2>
+                <div v-if="myItems.length === 0" class="text-center text-gray-400 py-10 font-bold">目前沒有發布資料。</div>
+                <div v-else class="space-y-4">
+                    <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-100 rounded-xl bg-gray-50 relative">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="title-font font-black text-[#2C3E3A] text-lg">{{ item.formName }}</span>
+                            <div class="flex gap-2">
+                                <button @click="editItem(item)" class="text-xs btn-orange px-2 py-1 rounded">修改</button>
+                                <button @click="deleteItem(item.id)" class="text-xs bg-red-500 text-white font-bold px-2 py-1 rounded hover:bg-red-600">刪除</button>
+                            </div>
+                        </div>
+                        <div class="text-red-600 font-black text-sm mb-2">📅 期限：{{ formatDeadline(item.deadline) }}</div>
+                        <div v-if="item.content" class="bg-white p-3 rounded border text-sm text-gray-700 display-content ql-editor" v-html="item.content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 畫面四：管理員後台 -->
+        <div v-if="currentView === 'admin' && user && user.isAdmin" class="bg-white p-6 rounded-2xl shadow-lg">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h2 class="text-2xl title-font text-[#5D8B6E]">👑 使用者與權限管理</h2>
+                
+                <div class="flex items-center gap-3">
+                    <label class="btn-orange px-4 py-2 rounded-lg shadow cursor-pointer text-sm">
+                        📥 匯入 Excel 名單
+                        <input type="file" accept=".xlsx, .xls" class="hidden" @change="handleExcelUpload">
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-xl mb-8 border border-gray-200">
+                <h3 class="font-bold mb-3">{{ userForm.id ? '✏️ 編輯使用者' : '➕ 手動新增使用者' }}</h3>
+                <form @submit.prevent="saveUser" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Email</label>
+                        <input type="email" v-model="userForm.email" class="input-style text-sm" required :disabled="!!userForm.id || userForm.name === 'admin'">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">姓名 (下拉選單名稱)</label>
+                        <input type="text" v-model="userForm.name" class="input-style text-sm" required :disabled="userForm.name === 'admin'">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">PIN 碼</label>
+                        <input type="text" v-model="userForm.pin" class="input-style text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">處室</label>
+                        <input type="text" v-model="userForm.dept" class="input-style text-sm" placeholder="例如: 系統管理">
+                    </div>
                     <div class="flex gap-2">
-                        <button type="submit" class="flex-1 btn-green py-2 rounded-lg font-bold shadow-sm">儲存發布</button>
-                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-4 rounded-lg font-bold">取消</button>
+                        <label class="flex items-center gap-1 text-sm font-bold mr-2">
+                            <input type="checkbox" v-model="userForm.isAdmin" :disabled="userForm.name === 'admin'"> 管理員
+                        </label>
+                        <button type="submit" class="btn-green px-3 py-2 rounded-lg text-sm flex-1">{{ userForm.id ? '更新' : '新增' }}</button>
+                        <button type="button" v-if="userForm.id" @click="resetUserForm" class="btn-gray px-3 py-2 rounded-lg text-sm">取消</button>
                     </div>
                 </form>
             </div>
 
-            <div class="md:col-span-3 card p-5 border border-gray-100 h-fit max-h-[700px] overflow-y-auto custom-scrollbar">
-                <div class="flex justify-between items-center mb-3 border-b pb-2">
-                    <h2 class="text-lg font-bold">我的發布紀錄</h2>
-                </div>
-                
-                <div v-if="myItems.length === 0" class="text-center text-gray-400 py-8 font-bold text-sm">
-                    您目前沒有發布中的提醒。
-                </div>
-                <div v-else class="space-y-3">
-                    <div v-for="item in myItems" :key="item.id" class="p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white transition-colors relative">
-                        <div class="flex justify-between items-start mb-2 gap-2">
-                            <div class="flex flex-col gap-1.5">
-                                <span class="font-black text-[#007D85] text-base leading-tight">{{ item.formName }}</span>
-                                <div class="text-red-600 font-black text-xs">
-                                    📅 期限：{{ formatDeadline(item.deadline) }}
-                                </div>
-                            </div>
-                            <div class="flex flex-col items-end gap-1.5">
-                                <div class="flex gap-1.5">
-                                    <button @click="editItem(item)" class="text-[11px] text-blue-600 hover:text-blue-800 font-bold px-1.5 py-0.5 bg-blue-50 rounded">修改</button>
-                                    <button @click="deleteItem(item.id)" class="text-[11px] text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 bg-red-50 rounded">刪除</button>
-                                </div>
-                                <div class="text-[10px] text-gray-400 font-bold">更新: {{ formatTaiwanTime(item.timestamp) }}</div>
-                            </div>
-                        </div>
-                        
-                        <div v-if="item.content" class="text-xs text-gray-800 font-bold bg-white p-2 rounded-lg border border-gray-200 max-h-32 overflow-y-auto custom-scrollbar display-content ql-editor mt-1" v-html="item.content"></div>
-                    </div>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-700">
+                    <thead class="bg-gray-100 text-gray-600 uppercase">
+                        <tr>
+                            <th class="px-4 py-3 rounded-tl-lg">姓名</th>
+                            <th class="px-4 py-3">Email</th>
+                            <th class="px-4 py-3">處室</th>
+                            <th class="px-4 py-3">權限</th>
+                            <th class="px-4 py-3 rounded-tr-lg text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="u in adminUserList" :key="u.id" class="border-b hover:bg-gray-50">
+                            <td class="px-4 py-3 font-bold">
+                                <span v-if="u.name === 'admin'">👑 </span>{{ u.name }}
+                            </td>
+                            <td class="px-4 py-3">{{ u.email }}</td>
+                            <td class="px-4 py-3"><span class="bg-[#C5DEB4] text-[#2C3E3A] px-2 py-1 rounded text-xs font-bold">{{ u.dept }}</span></td>
+                            <td class="px-4 py-3">
+                                <span v-if="u.isAdmin" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">管理員</span>
+                                <span v-else class="text-gray-400">一般</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <button @click="editUser(u)" class="text-blue-600 font-bold hover:underline mr-3">編輯</button>
+                                <button @click="deleteUser(u)" class="text-red-600 font-bold hover:underline" :disabled="u.name === 'admin'" :class="{'opacity-30 cursor-not-allowed': u.name === 'admin'}">刪除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -278,60 +342,73 @@
         </div>
     </div>
 
+    <!-- Vue 與腳本區塊 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
     <script>
+        // ==========================================
+        // Firebase 專案設定
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnrYdAJJRLW3F6_rO7dXgH1C3807hpI4U",
+            authDomain: "report-94e51.firebaseapp.com",
+            projectId: "report-94e51",
+            storageBucket: "report-94e51.firebasestorage.app",
+            messagingSenderId: "159568813682",
+            appId: "1:159568813682:web:581a9bfa9146ad11dd2ceb"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         const { createApp } = Vue;
 
         createApp({
             data() {
                 return {
-                    // ★★★ 重要：請將下方的字串替換為您最新的 Google Apps Script URL ★★★
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0oYt8q19bxGPIKAWYqzN0P0YRU0xLygLjzvBwqSTI5nh5llKJeQ4NXvFSV54R2evJ/exec',
-                    
                     currentView: 'public', 
-                    isLoading: false, 
-                    isLoggedIn: false, 
-                    user: null,
-                    userList: [], 
-                    loginForm: { name: '', pin: '' },
-                    
-                    items: [], 
-                    searchDept: '', 
-                    
-                    // 分頁相關參數
-                    currentPage: 1,
-                    itemsPerPage: 10,
-                    
+                    isLoading: false, isLoggedIn: false, user: null,
+                    userList: [], loginForm: { name: '', pin: '' },
+                    items: [], searchDept: '', 
+                    currentPage: 1, itemsPerPage: 12, 
                     form: { id: null, deadline: '', formName: '', content: '' },
                     quillEditor: null, 
-                    
-                    showPwdModal: false, 
-                    pwdForm: { oldPin: '', newPin: '', confirm: '' }
+                    adminUserList: [],
+                    userForm: { id: null, email: '', name: '', pin: '', dept: '', isAdmin: false },
+                    showPwdModal: false, pwdForm: { oldPin: '', newPin: '', confirm: '' }
                 }
             },
             mounted() { 
+                this.fetchUsers();
                 this.loadData();
-                this.fetchUsers(); 
             },
             watch: {
-                // 當處室過濾條件改變時，自動回到第一頁
-                searchDept() {
-                    this.currentPage = 1;
+                searchDept() { this.currentPage = 1; },
+                currentView(newVal) {
+                    if (newVal === 'admin' && this.user?.isAdmin) {
+                        this.fetchAdminUsers();
+                    } else if (newVal === 'dashboard') {
+                        this.initQuill();
+                    }
                 }
             },
             computed: {
                 validItems() {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0); 
-
                     return this.items.filter(item => {
                         if (!item.deadline) return true;
-                        const deadlineDate = new Date(item.deadline);
-                        deadlineDate.setHours(0, 0, 0, 0);
+                        const dDate = new Date(item.deadline);
+                        dDate.setHours(0, 0, 0, 0);
+                        // 計算現在與期限的天數差：
+                        // 如果 dDate 是未來，diffDays 為負數
+                        // 如果 dDate 是過去，diffDays 為正數
+                        const diffDays = (today.getTime() - dDate.getTime()) / (1000 * 3600 * 24);
                         
-                        const diffTime = today.getTime() - deadlineDate.getTime();
-                        const diffDays = diffTime / (1000 * 3600 * 24);
-                        
-                        return diffDays <= 7;
+                        // 隱藏條件：已經過了超過 3 天 (今天距離期限 > 3)
+                        return diffDays <= 3; 
                     });
                 },
                 availableDepts() {
@@ -340,217 +417,289 @@
                 },
                 filteredPublicItems() {
                     let filtered = this.validItems;
-                    if (this.searchDept) {
-                        filtered = filtered.filter(item => item.dept === this.searchDept);
-                    }
-                    
-                    // 日期排序：越接近今天的排上面
+                    if (this.searchDept) filtered = filtered.filter(item => item.dept === this.searchDept);
                     return filtered.sort((a, b) => {
-                        if (!a.deadline) return 1;
-                        if (!b.deadline) return -1;
+                        if (!a.deadline) return 1; if (!b.deadline) return -1;
                         return new Date(a.deadline) - new Date(b.deadline);
                     });
                 },
-                // 分頁計算：總頁數
-                totalPages() {
-                    return Math.ceil(this.filteredPublicItems.length / this.itemsPerPage) || 1;
-                },
-                // 分頁計算：目前頁面要顯示的 10 筆資料
+                totalPages() { return Math.ceil(this.filteredPublicItems.length / this.itemsPerPage) || 1; },
                 paginatedPublicItems() {
                     const start = (this.currentPage - 1) * this.itemsPerPage;
-                    const end = start + this.itemsPerPage;
-                    return this.filteredPublicItems.slice(start, end);
+                    return this.filteredPublicItems.slice(start, start + this.itemsPerPage);
                 },
                 myItems() {
                     if (!this.user) return [];
-                    if (this.user.isAdmin) return this.validItems;
-                    return this.validItems.filter(item => item.email === this.user.email);
+                    if (this.user.name === 'admin') return this.items.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    return this.items.filter(item => item.email === this.user.email).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
                 }
             },
             methods: {
-                // 分頁切換功能
-                nextPage() {
-                    if (this.currentPage < this.totalPages) {
-                        this.currentPage++;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                },
-                prevPage() {
-                    if (this.currentPage > 1) {
-                        this.currentPage--;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
+                getDeptColor(dept) {
+                    if(!dept) return 'tag-gray';
+                    const colors = ['tag-red', 'tag-yellow', 'tag-green', 'tag-teal', 'tag-purple'];
+                    let hash = 0;
+                    for (let i = 0; i < dept.length; i++) hash = dept.charCodeAt(i) + ((hash << 5) - hash);
+                    return colors[Math.abs(hash) % colors.length];
                 },
                 getUrgency(deadline) {
                     if (!deadline) return { show: false };
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    const d = new Date(deadline); d.setHours(0, 0, 0, 0);
                     
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const d = new Date(deadline);
-                    d.setHours(0, 0, 0, 0);
-                    
+                    // diffDays = 期限減去今天
+                    // 如果 diffDays > 0 代表在未來 (期限還沒到)
+                    // 如果 diffDays < 0 代表在過去 (已經逾期)
                     const diffDays = (d.getTime() - today.getTime()) / (1000 * 3600 * 24);
                     
-                    if (diffDays < 0) {
-                        return { show: true, icon: '🚨', text: '逾期', color: 'text-red-700', bg: 'bg-red-50 border-red-300' };
-                    } else if (diffDays <= 3) {
-                        return { show: true, icon: '🔥', text: '緊急', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-300' };
-                    } else {
-                        return { show: false };
+                    // 逾期：小於 0 天，但大於等於 -3 天
+                    if (diffDays < 0 && diffDays >= -3) {
+                        return { show: true, icon: '🚨', text: '逾期', color: 'text-red-700' };
+                    } 
+                    // 緊急：大於等於 0 天，且小於等於 3 天內
+                    else if (diffDays >= 0 && diffDays <= 3) {
+                        return { show: true, icon: '🔥', text: '緊急', color: 'text-orange-600' };
                     }
+                    
+                    return { show: false };
                 },
-                async requestGAS(payload) {
-                    try {
-                        const res = await fetch(this.scriptUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify(payload)
-                        });
-                        return await res.json();
-                    } catch (error) {
-                        alert('網路連線錯誤，請確認 GAS 網址設定'); 
-                        console.error(error);
-                        return { success: false };
-                    }
-                },
+                nextPage() { if (this.currentPage < this.totalPages) { this.currentPage++; window.scrollTo(0,0); } },
+                prevPage() { if (this.currentPage > 1) { this.currentPage--; window.scrollTo(0,0); } },
                 formatDeadline(isoString) {
                     if (!isoString) return '';
                     const d = new Date(isoString);
                     if (isNaN(d.getTime())) return isoString;
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    return `${year}-${month}-${day}`;
+                    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                 },
                 formatTaiwanTime(isoString) {
                     if (!isoString) return '';
                     const d = new Date(isoString);
                     if (isNaN(d.getTime())) return isoString;
-                    return d.toLocaleString('zh-TW', {
-                        timeZone: 'Asia/Taipei',
-                        year: 'numeric', month: '2-digit', day: '2-digit',
-                        hour: '2-digit', minute: '2-digit', hour12: false
-                    });
+                    return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
                 },
                 async initQuill() {
                     await this.$nextTick(); 
+                    const container = document.getElementById('editor-container');
+                    if (!container) return; 
+
                     if (!this.quillEditor) {
                         this.quillEditor = new Quill('#editor-container', {
-                            theme: 'snow',
-                            placeholder: '請填寫繳交對象或繳交方式 (可加上超連結、改顏色)...',
-                            modules: {
-                                toolbar: [
-                                    [{ 'size': ['small', false, 'large', 'huge'] }], 
-                                    [{ 'color': [] }, { 'background': [] }],       
-                                    ['bold', 'italic', 'underline', 'strike'],     
-                                    ['link', 'list']                               
-                                ]
-                            }
+                            theme: 'snow', placeholder: '請填寫細節 (可加超連結)...',
+                            modules: { toolbar: [ [{ 'size': ['small', false, 'large'] }], [{ 'color': [] }, { 'background': [] }], ['bold', 'link', 'list'] ] }
                         });
-                        this.quillEditor.on('text-change', () => {
-                            this.form.content = this.quillEditor.root.innerHTML;
-                        });
+                        this.quillEditor.on('text-change', () => { this.form.content = this.quillEditor.root.innerHTML; });
+                    }
+                    
+                    if (this.form.content) {
+                        this.quillEditor.root.innerHTML = this.form.content;
                     }
                 },
+                
                 async fetchUsers() {
-                    const res = await this.requestGAS({ action: 'getUsers' });
-                    if (res.success && res.users) this.userList = res.users;
+                    const cached = localStorage.getItem('chanes_users');
+                    if (cached) this.userList = JSON.parse(cached);
+                    try {
+                        const snapshot = await db.collection('users').get();
+                        const users = [];
+                        snapshot.forEach(doc => { users.push({ id: doc.id, ...doc.data() }); });
+                        this.userList = users;
+                        localStorage.setItem('chanes_users', JSON.stringify(users)); 
+                    } catch(e) { console.error('Fetch users error:', e); }
                 },
                 async loadData() {
-                    this.isLoading = true;
-                    const res = await this.requestGAS({ action: 'load' });
-                    if (res.success) {
-                        this.items = res.items.reverse(); 
-                    }
+                    if(this.items.length === 0) this.isLoading = true;
+                    try {
+                        const snapshot = await db.collection('tasks').get();
+                        const data = [];
+                        snapshot.forEach(doc => { data.push({ id: doc.id, ...doc.data() }); });
+                        this.items = data;
+                    } catch(e) { console.error('Load data error:', e); }
                     this.isLoading = false;
                 },
+                
                 async login() {
                     if (!this.loginForm.name) return alert('請選擇姓名！');
                     this.isLoading = true;
-                    const res = await this.requestGAS({
-                        action: 'login', name: this.loginForm.name, pin: this.loginForm.pin
-                    });
-                    if (res.success) {
-                        this.user = res.user;
-                        this.isLoggedIn = true;
-                        this.currentView = 'dashboard';
-                        this.initQuill(); 
-                    } else { 
-                        alert(res.message); 
-                    }
+                    try {
+                        const snapshot = await db.collection('users')
+                            .where('name', '==', this.loginForm.name)
+                            .where('pin', '==', this.loginForm.pin).get();
+                            
+                        if (snapshot.empty) {
+                            if (this.loginForm.name === 'admin' && this.loginForm.pin === 'admin') {
+                                const adminCheck = await db.collection('users').where('name', '==', 'admin').get();
+                                if (adminCheck.empty) {
+                                    const newAdmin = { email: 'admin@system.local', name: 'admin', pin: 'admin', dept: '系統管理', isAdmin: true };
+                                    const docRef = await db.collection('users').add(newAdmin);
+                                    this.user = { id: docRef.id, ...newAdmin };
+                                    this.isLoggedIn = true;
+                                    this.currentView = 'admin'; 
+                                    this.isLoading = false;
+                                    return;
+                                }
+                            }
+                            alert('帳號或密碼錯誤！');
+                        } else {
+                            const userDoc = snapshot.docs[0];
+                            this.user = { id: userDoc.id, ...userDoc.data() };
+                            this.isLoggedIn = true;
+                            this.currentView = this.user.name === 'admin' ? 'admin' : 'dashboard';
+                        }
+                    } catch(e) { alert('登入失敗，請確認 Firebase 設定！\n' + e.message); }
                     this.isLoading = false;
                 },
-                logout() {
-                    this.isLoggedIn = false; 
-                    this.user = null; 
-                    this.loginForm.pin = '';
-                    this.currentView = 'public';
-                    this.quillEditor = null; 
-                },
+                logout() { this.isLoggedIn = false; this.user = null; this.loginForm.pin = ''; this.currentView = 'public'; this.quillEditor = null; },
                 async changePassword() {
-                    if (this.pwdForm.newPin !== this.pwdForm.confirm) return alert('兩次新密碼不一致！');
+                    if (this.pwdForm.newPin !== this.pwdForm.confirm) return alert('新密碼不一致！');
                     this.isLoading = true;
-                    const res = await this.requestGAS({
-                        action: 'changePassword', email: this.user.email,
-                        oldPin: this.pwdForm.oldPin, newPin: this.pwdForm.newPin
-                    });
-                    this.isLoading = false;
-                    if (res.success) { 
+                    try {
+                        if (String(this.user.pin) !== String(this.pwdForm.oldPin)) {
+                            throw new Error("舊密碼輸入錯誤！");
+                        }
+                        await db.collection('users').doc(this.user.id).update({ pin: String(this.pwdForm.newPin).trim() });
                         alert('密碼修改成功！請重新登入。'); 
                         this.showPwdModal = false; 
                         this.logout(); 
-                    } else { 
-                        alert(res.message); 
-                    }
+                    } catch(e) { alert(e.message); }
+                    this.isLoading = false;
                 },
+                
                 async saveItem() {
                     if(!this.form.deadline) return alert('請選擇繳交期限！');
-                    
                     this.isLoading = true;
-                    let finalContent = this.form.content;
-                    if (finalContent === '<p><br></p>') finalContent = '';
-
-                    const payload = {
-                        action: 'save', 
-                        email: this.user.email, 
-                        name: this.user.name, 
-                        userDept: this.user.dept,
-                        item: { ...this.form, content: finalContent }
+                    let finalContent = this.form.content === '<p><br></p>' ? '' : this.form.content;
+                    const taskData = {
+                        email: this.user.email, name: this.user.name, dept: this.user.dept,
+                        deadline: this.form.deadline, formName: this.form.formName, 
+                        content: finalContent, timestamp: new Date().toISOString()
                     };
-                    const res = await this.requestGAS(payload);
-                    if (res.success) { 
-                        this.resetForm(); 
-                        await this.loadData(); 
-                    } else { 
-                        alert(res.message); 
-                        this.isLoading = false; 
-                    }
+                    try {
+                        if (this.form.id) {
+                            await db.collection('tasks').doc(this.form.id).update(taskData);
+                        } else {
+                            await db.collection('tasks').add(taskData);
+                        }
+                        this.resetForm();
+                        await this.loadData();
+                    } catch(e) { alert('儲存失敗: ' + e.message); }
+                    this.isLoading = false;
                 },
-                editItem(item) { 
+                editItem(item) {
                     this.form = { ...item };
-                    if (this.form.deadline) {
-                        this.form.deadline = this.formatDeadline(this.form.deadline);
-                    }
-                    if (this.quillEditor) {
-                        this.quillEditor.root.innerHTML = item.content || '';
-                    }
+                    if (this.form.deadline) this.form.deadline = this.formatDeadline(this.form.deadline);
+                    if (this.quillEditor) this.quillEditor.root.innerHTML = item.content || '';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
                 async deleteItem(id) {
                     if (!confirm('確定要刪除這筆提醒嗎？')) return;
                     this.isLoading = true;
-                    const res = await this.requestGAS({ action: 'delete', id: id, email: this.user.email });
-                    if (res.success) await this.loadData();
-                    else this.isLoading = false;
+                    try {
+                        await db.collection('tasks').doc(id).delete();
+                        await this.loadData();
+                    } catch(e) { alert('刪除失敗'); }
+                    this.isLoading = false;
                 },
-                resetForm() { 
-                    this.form = { id: null, deadline: '', formName: '', content: '' }; 
-                    if (this.quillEditor) {
-                        this.quillEditor.root.innerHTML = '';
-                    }
+                resetForm() { this.form = { id: null, deadline: '', formName: '', content: '' }; if (this.quillEditor) this.quillEditor.root.innerHTML = ''; },
+
+                async fetchAdminUsers() {
+                    const snapshot = await db.collection('users').get();
+                    const users = [];
+                    snapshot.forEach(doc => { users.push({ id: doc.id, ...doc.data() }); });
+                    this.adminUserList = users.sort((a, b) => (a.name === 'admin' ? -1 : (b.name === 'admin' ? 1 : 0)));
+                },
+                async saveUser() {
+                    this.isLoading = true;
+                    try {
+                        const uData = {
+                            email: this.userForm.email.trim(), name: this.userForm.name.trim(),
+                            pin: String(this.userForm.pin).trim(), dept: this.userForm.dept.trim() || '未分類',
+                            isAdmin: this.userForm.isAdmin
+                        };
+                        if (this.userForm.id) {
+                            await db.collection('users').doc(this.userForm.id).update(uData);
+                        } else {
+                            const exist = await db.collection('users').where('email', '==', uData.email).get();
+                            if(!exist.empty) throw new Error('Email 已存在');
+                            await db.collection('users').add(uData);
+                        }
+                        this.resetUserForm();
+                        await this.fetchAdminUsers();
+                        await this.fetchUsers(); 
+                    } catch(e) { alert(e.message); }
+                    this.isLoading = false;
+                },
+                editUser(u) { this.userForm = { ...u }; },
+                async deleteUser(u) {
+                    if(u.name === 'admin') return alert('系統管理員帳號不可刪除！');
+                    if(u.id === this.user.id) return alert('不能刪除自己！');
+                    if (!confirm('確定要刪除此使用者嗎？')) return;
+                    this.isLoading = true;
+                    try {
+                        await db.collection('users').doc(u.id).delete();
+                        await this.fetchAdminUsers();
+                        await this.fetchUsers();
+                    } catch(e) { alert('刪除失敗'); }
+                    this.isLoading = false;
+                },
+                resetUserForm() { this.userForm = { id: null, email: '', name: '', pin: '', dept: '', isAdmin: false }; },
+                
+                handleExcelUpload(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    this.isLoading = true;
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (evt) => {
+                        try {
+                            const bstr = evt.target.result;
+                            const wb = XLSX.read(bstr, { type: 'binary' });
+                            
+                            const wsUser = wb.Sheets['使用者對照表'];
+                            const wsAdmin = wb.Sheets['管理員名單'];
+                            if(!wsUser) throw new Error('找不到「使用者對照表」工作表');
+                            
+                            const usersData = XLSX.utils.sheet_to_json(wsUser);
+                            const adminData = wsAdmin ? XLSX.utils.sheet_to_json(wsAdmin) : [];
+                            const adminEmails = adminData.map(a => String(a['Email']).trim());
+                            
+                            let added = 0, updated = 0;
+                            
+                            for (const row of usersData) {
+                                const email = String(row['Email'] || '').trim();
+                                if(!email || email === 'undefined') continue;
+                                
+                                const name = String(row['姓名(未登入)'] || '').trim();
+                                const pin = String(row['PIN碼'] || '').trim();
+                                const dept = String(row['所屬處室'] || '未分類').trim();
+                                const isAdmin = adminEmails.includes(email);
+                                
+                                const uData = { email, name, pin, dept, isAdmin };
+                                
+                                const existSnap = await db.collection('users').where('email', '==', email).get();
+                                if (existSnap.empty) {
+                                    await db.collection('users').add(uData);
+                                    added++;
+                                } else {
+                                    await db.collection('users').doc(existSnap.docs[0].id).update(uData);
+                                    updated++;
+                                }
+                            }
+                            
+                            alert('匯入完成！\n新增: ' + added + ' 筆\n更新: ' + updated + ' 筆');
+                            await this.fetchAdminUsers();
+                            await this.fetchUsers();
+                        } catch(err) {
+                            alert('解析 Excel 發生錯誤：' + err.message);
+                        }
+                        this.isLoading = false;
+                        e.target.value = ''; 
+                    };
+                    reader.readAsBinaryString(file);
                 }
             }
         }).mount('#app');
     </script>
+</body>
+</html>
 </body>
 </html>
