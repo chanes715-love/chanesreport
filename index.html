@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>長安表單繳交提醒系統</title>
+    <!-- 加入 Emoji 作為網頁圖示，徹底消除 favicon.ico 404 錯誤 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
     
     <!-- 隱藏 Tailwind CDN 警告 -->
     <script>
@@ -78,9 +80,10 @@
         
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(197, 222, 180, 0.9); display: flex; justify-content: center; align-items: center; z-index: 50; font-size: 1.5rem; color: #2C3E3A; font-weight: 900; flex-direction: column; }
         
-        #editor-container { height: 180px; background-color: #FFF; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
-        .ql-toolbar { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background-color: #F8FAFC; border-color: #E2E8F0; }
+        #editor-container { height: 180px; background-color: #FFF; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; font-family: 'Noto Serif TC', serif; font-size: 1rem; }
+        .ql-toolbar { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background-color: #F8FAFC; border-color: #E2E8F0; font-family: 'Noto Serif TC', serif; }
         .display-content.ql-editor { padding: 0 !important; font-family: inherit; font-size: inherit; height: auto !important; min-height: 0 !important; line-height: 1.5; font-weight: 600; }
+        .display-content.ql-editor a { color: #2563EB; text-decoration: underline; }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
@@ -109,6 +112,7 @@
                     <template v-if="isLoggedIn">
                         <button @click="currentView = 'dashboard'" class="btn-green px-4 py-2 rounded-full text-sm shadow">我的發布</button>
                         <button v-if="user.isAdmin" @click="currentView = 'admin'" class="btn-orange px-4 py-2 rounded-full text-sm shadow">使用者管理</button>
+                        <button @click="showPwdModal = true" class="btn-gray px-4 py-2 rounded-full text-sm shadow">修改密碼</button>
                         <button @click="logout" class="bg-red-500 text-white font-bold px-4 py-2 rounded-full text-sm shadow">登出</button>
                     </template>
                 </div>
@@ -198,8 +202,8 @@
             </form>
         </div>
 
-        <!-- 畫面三：發布者 Dashboard -->
-        <div v-if="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-6">
+        <!-- 畫面三：發布者 Dashboard (改用 v-show 避免切換時 Quill 編輯器被銷毀) -->
+        <div v-show="currentView === 'dashboard'" class="grid grid-cols-1 md:grid-cols-10 gap-6">
             <div class="md:col-span-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-fit">
                 <h2 class="text-xl title-font mb-4 text-[#5D8B6E] border-b pb-2">{{ form.id ? '✏️ 編輯提醒' : '📝 發布新提醒' }}</h2>
                 <form @submit.prevent="saveItem">
@@ -215,11 +219,14 @@
                     </div>
                     <div class="mb-5">
                         <label class="block mb-1 text-sm font-bold text-gray-700">💡 備註與說明 (選填)</label>
-                        <div id="editor-container"></div>
+                        <!-- 編輯器外框容器 -->
+                        <div class="bg-white rounded-lg">
+                            <div id="editor-container"></div>
+                        </div>
                     </div>
                     <div class="flex gap-3">
                         <button type="submit" class="flex-1 btn-green py-3 rounded-xl shadow-md text-lg">{{ form.id ? '儲存更新' : '確認發布' }}</button>
-                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-xl text-lg">取消</button>
+                        <button type="button" v-if="form.id" @click="resetForm" class="btn-gray px-6 rounded-xl text-lg">取消編輯</button>
                     </div>
                 </form>
             </div>
@@ -227,12 +234,12 @@
                 <h2 class="text-xl title-font mb-4 text-[#5D8B6E] border-b pb-2">📋 我的發布紀錄</h2>
                 <div v-if="myItems.length === 0" class="text-center text-gray-400 py-10 font-bold">目前沒有發布資料。</div>
                 <div v-else class="space-y-4">
-                    <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-100 rounded-xl bg-gray-50 relative">
+                    <div v-for="item in myItems" :key="item.id" class="p-4 border border-gray-100 rounded-xl bg-gray-50 relative" :class="{'ring-2 ring-[#EAA44D] bg-[#FFF9E6]': form.id === item.id}">
                         <div class="flex justify-between items-start mb-2">
                             <span class="title-font font-black text-[#2C3E3A] text-lg">{{ item.formName }}</span>
-                            <div class="flex gap-2">
-                                <button @click="editItem(item)" class="text-xs btn-orange px-2 py-1 rounded">修改</button>
-                                <button @click="deleteItem(item.id)" class="text-xs bg-red-500 text-white font-bold px-2 py-1 rounded hover:bg-red-600">刪除</button>
+                            <div class="flex gap-2 shrink-0 ml-2">
+                                <button type="button" @click="editItem(item)" class="text-xs btn-orange px-2.5 py-1 rounded shadow-sm">修改</button>
+                                <button type="button" @click="deleteItem(item.id)" class="text-xs bg-red-500 text-white font-bold px-2.5 py-1 rounded shadow-sm hover:bg-red-600">刪除</button>
                             </div>
                         </div>
                         <div class="text-red-600 font-black text-sm mb-2">📅 期限：{{ formatDeadline(item.deadline) }}</div>
@@ -318,8 +325,8 @@
 
         <!-- 修改密碼 Modal -->
         <div v-if="showPwdModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40">
-            <div class="card p-6 w-80 max-w-[90%]">
-                <h2 class="text-lg font-black mb-4 text-center text-[#007D85]">修改密碼</h2>
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-[90%]">
+                <h2 class="text-lg font-black mb-4 text-center text-[#2C3E3A]">修改密碼</h2>
                 <form @submit.prevent="changePassword">
                     <div class="mb-3">
                         <label class="block mb-1 text-xs text-gray-600 font-bold">舊密碼</label>
@@ -383,6 +390,8 @@
             mounted() { 
                 this.fetchUsers();
                 this.loadData();
+                // 網頁載入時直接初始化 Quill 編輯器 (搭配 v-show 不會被銷毀)
+                this.initQuill();
             },
             watch: {
                 searchDept() { this.currentPage = 1; },
@@ -402,12 +411,7 @@
                         if (!item.deadline) return true;
                         const dDate = new Date(item.deadline);
                         dDate.setHours(0, 0, 0, 0);
-                        // 計算現在與期限的天數差：
-                        // 如果 dDate 是未來，diffDays 為負數
-                        // 如果 dDate 是過去，diffDays 為正數
                         const diffDays = (today.getTime() - dDate.getTime()) / (1000 * 3600 * 24);
-                        
-                        // 隱藏條件：已經過了超過 3 天 (今天距離期限 > 3)
                         return diffDays <= 3; 
                     });
                 },
@@ -446,21 +450,13 @@
                     if (!deadline) return { show: false };
                     const today = new Date(); today.setHours(0, 0, 0, 0);
                     const d = new Date(deadline); d.setHours(0, 0, 0, 0);
-                    
-                    // diffDays = 期限減去今天
-                    // 如果 diffDays > 0 代表在未來 (期限還沒到)
-                    // 如果 diffDays < 0 代表在過去 (已經逾期)
                     const diffDays = (d.getTime() - today.getTime()) / (1000 * 3600 * 24);
                     
-                    // 逾期：小於 0 天，但大於等於 -3 天
                     if (diffDays < 0 && diffDays >= -3) {
                         return { show: true, icon: '🚨', text: '逾期', color: 'text-red-700' };
-                    } 
-                    // 緊急：大於等於 0 天，且小於等於 3 天內
-                    else if (diffDays >= 0 && diffDays <= 3) {
+                    } else if (diffDays >= 0 && diffDays <= 3) {
                         return { show: true, icon: '🔥', text: '緊急', color: 'text-orange-600' };
                     }
-                    
                     return { show: false };
                 },
                 nextPage() { if (this.currentPage < this.totalPages) { this.currentPage++; window.scrollTo(0,0); } },
@@ -477,22 +473,30 @@
                     if (isNaN(d.getTime())) return isoString;
                     return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
                 },
-                async initQuill() {
-                    await this.$nextTick(); 
-                    const container = document.getElementById('editor-container');
-                    if (!container) return; 
+                initQuill() {
+                    this.$nextTick(() => {
+                        const container = document.getElementById('editor-container');
+                        if (!container) return; 
 
-                    if (!this.quillEditor) {
-                        this.quillEditor = new Quill('#editor-container', {
-                            theme: 'snow', placeholder: '請填寫細節 (可加超連結)...',
-                            modules: { toolbar: [ [{ 'size': ['small', false, 'large'] }], [{ 'color': [] }, { 'background': [] }], ['bold', 'link', 'list'] ] }
-                        });
-                        this.quillEditor.on('text-change', () => { this.form.content = this.quillEditor.root.innerHTML; });
-                    }
-                    
-                    if (this.form.content) {
-                        this.quillEditor.root.innerHTML = this.form.content;
-                    }
+                        // 確保沒有重複建立編輯器
+                        if (!this.quillEditor) {
+                            this.quillEditor = new Quill('#editor-container', {
+                                theme: 'snow', 
+                                placeholder: '請填寫繳交對象或補充說明 (可加上超連結、改顏色)...',
+                                modules: { 
+                                    toolbar: [ 
+                                        [{ 'size': ['small', false, 'large'] }], 
+                                        [{ 'color': [] }, { 'background': [] }], 
+                                        ['bold', 'underline', 'link', { 'list': 'ordered'}, { 'list': 'bullet' }],
+                                        ['clean']
+                                    ] 
+                                }
+                            });
+                            this.quillEditor.on('text-change', () => { 
+                                this.form.content = this.quillEditor.root.innerHTML; 
+                            });
+                        }
+                    });
                 },
                 
                 async fetchUsers() {
@@ -548,7 +552,13 @@
                     } catch(e) { alert('登入失敗，請確認 Firebase 設定！\n' + e.message); }
                     this.isLoading = false;
                 },
-                logout() { this.isLoggedIn = false; this.user = null; this.loginForm.pin = ''; this.currentView = 'public'; this.quillEditor = null; },
+                logout() { 
+                    this.isLoggedIn = false; 
+                    this.user = null; 
+                    this.loginForm.pin = ''; 
+                    this.resetForm();
+                    this.currentView = 'public'; 
+                },
                 async changePassword() {
                     if (this.pwdForm.newPin !== this.pwdForm.confirm) return alert('新密碼不一致！');
                     this.isLoading = true;
@@ -567,11 +577,24 @@
                 async saveItem() {
                     if(!this.form.deadline) return alert('請選擇繳交期限！');
                     this.isLoading = true;
-                    let finalContent = this.form.content === '<p><br></p>' ? '' : this.form.content;
+                    
+                    // 儲存前直接從 Quill 取得最新 HTML 內容，確保萬無一失
+                    let finalContent = '';
+                    if (this.quillEditor) {
+                        const rawHtml = this.quillEditor.root.innerHTML;
+                        finalContent = (rawHtml === '<p><br></p>' || this.quillEditor.getText().trim() === '') ? '' : rawHtml;
+                    } else {
+                        finalContent = this.form.content === '<p><br></p>' ? '' : this.form.content;
+                    }
+
                     const taskData = {
-                        email: this.user.email, name: this.user.name, dept: this.user.dept,
-                        deadline: this.form.deadline, formName: this.form.formName, 
-                        content: finalContent, timestamp: new Date().toISOString()
+                        email: this.user.email, 
+                        name: this.user.name, 
+                        dept: this.user.dept,
+                        deadline: this.form.deadline, 
+                        formName: this.form.formName, 
+                        content: finalContent, 
+                        timestamp: new Date().toISOString()
                     };
                     try {
                         if (this.form.id) {
@@ -581,13 +604,27 @@
                         }
                         this.resetForm();
                         await this.loadData();
+                        alert('儲存發布成功！');
                     } catch(e) { alert('儲存失敗: ' + e.message); }
                     this.isLoading = false;
                 },
                 editItem(item) {
-                    this.form = { ...item };
-                    if (this.form.deadline) this.form.deadline = this.formatDeadline(this.form.deadline);
-                    if (this.quillEditor) this.quillEditor.root.innerHTML = item.content || '';
+                    this.form = { 
+                        id: item.id,
+                        deadline: item.deadline ? this.formatDeadline(item.deadline) : '',
+                        formName: item.formName || '',
+                        content: item.content || ''
+                    };
+                    
+                    // 將舊內容載入至 Quill 編輯器中供修改
+                    this.$nextTick(() => {
+                        if (!this.quillEditor) {
+                            this.initQuill();
+                        }
+                        if (this.quillEditor) {
+                            this.quillEditor.root.innerHTML = this.form.content;
+                        }
+                    });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
                 async deleteItem(id) {
@@ -595,11 +632,17 @@
                     this.isLoading = true;
                     try {
                         await db.collection('tasks').doc(id).delete();
+                        if (this.form.id === id) this.resetForm();
                         await this.loadData();
                     } catch(e) { alert('刪除失敗'); }
                     this.isLoading = false;
                 },
-                resetForm() { this.form = { id: null, deadline: '', formName: '', content: '' }; if (this.quillEditor) this.quillEditor.root.innerHTML = ''; },
+                resetForm() { 
+                    this.form = { id: null, deadline: '', formName: '', content: '' }; 
+                    if (this.quillEditor) {
+                        this.quillEditor.root.innerHTML = ''; 
+                    }
+                },
 
                 async fetchAdminUsers() {
                     const snapshot = await db.collection('users').get();
@@ -699,7 +742,5 @@
             }
         }).mount('#app');
     </script>
-</body>
-</html>
 </body>
 </html>
